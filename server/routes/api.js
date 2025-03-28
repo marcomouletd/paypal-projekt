@@ -230,4 +230,9 @@ router.post('/state', async (req, res) => {
   }
 });
 
+// Add a health check endpoint
+router.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: Date.now() });
+});
+
 module.exports = router;

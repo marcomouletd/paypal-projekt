@@ -163,12 +163,16 @@ function handleNewSessionCommand(chatId) {
  */
 async function generateNewSession(chatId) {
   try {
+    // Get the server URL from environment or use default
+    const serverUrl = process.env.SERVER_URL || 'http://localhost:3000';
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    
     // Call the API to generate a new key
-    const response = await axios.post('http://localhost:3000/api/generate-key');
+    const response = await axios.post(`${serverUrl}/api/generate-key`);
     const { key } = response.data;
     
     // Create the link
-    const link = `http://localhost:5173/${key}`;
+    const link = `${clientUrl}/${key}`;
     
     // Initialize session data
     activeSessions.set(key, {

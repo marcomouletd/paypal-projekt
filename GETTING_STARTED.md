@@ -1,13 +1,14 @@
 # Getting Started Guide
 
-This guide will help you set up and run the Telegram Bot-Controlled React App project.
+This guide will help you set up and run the Telegram Bot-Controlled React App project in both development and production environments.
 
 ## Prerequisites
 
-- Node.js (v14 or higher)
-- npm (v6 or higher)
+- Node.js (v16 or higher)
+- npm (v7 or higher)
 - A Telegram account
 - A Telegram bot token (obtained from BotFather)
+- Docker and Docker Compose (for production deployment)
 
 ## Step 1: Create a Telegram Bot
 
@@ -26,60 +27,60 @@ This guide will help you set up and run the Telegram Bot-Controlled React App pr
 ### For Group Chat ID:
 1. Create a group in Telegram
 2. Add your bot to the group and make it an admin
-3. Run the provided script to get the group chat ID:
-   ```
-   node get-chat-id.js
-   ```
-4. Send `/getchatid` in the group
-5. The bot will respond with the group chat ID. Save this as your `GROUP_CHAT_ID`.
+3. Send a message in the group
+4. Visit `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates` in your browser (replace `<YOUR_BOT_TOKEN>` with your actual token)
+5. Look for the "chat" object and find the "id" field. This is your `GROUP_CHAT_ID`.
 
 ## Step 3: Configure Environment Variables
 
-1. In the project root directory, edit the `.env` file:
-   ```
-   TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-   ADMIN_CHAT_ID=your_chat_id
-   GROUP_CHAT_ID=your_group_chat_id
-   PORT=3000
-   NODE_ENV=development
-   ```
+Create a `.env` file in the project root directory with the following variables:
 
-## Step 4: Set Up the Project
+```
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+ADMIN_CHAT_ID=your_chat_id
+GROUP_CHAT_ID=your_group_chat_id
+PORT=3000
+NODE_ENV=development
+SERVER_URL=http://localhost:3000
+CLIENT_URL=http://localhost:5173
+```
+
+For production, set:
+```
+NODE_ENV=production
+SERVER_URL=https://your-domain.com
+CLIENT_URL=https://your-domain.com
+```
+
+## Development Setup
+
+### Option 1: Automatic Setup
 
 Run the setup script to install dependencies and initialize the database:
 
-```
+```bash
 npm run setup
 ```
 
-Alternatively, you can run these commands manually:
+### Option 2: Manual Setup
 
-```
+```bash
+# Install server dependencies
 npm install
+
+# Install client dependencies
 cd client && npm install
+cd ..
+
+# Initialize the database
 npm run init-db
 ```
 
-## Step 5: Test the Telegram Bot
-
-To verify that your Telegram bot is working correctly:
-
-```
-npm run test-bot
-```
-
-Then, open Telegram and send a message to your bot. You should see a response.
-
-Try the following commands:
-- `/start` - Get a welcome message
-- `/help` - See available commands
-- `/hello` - Get a special "evil" greeting
-
-## Step 6: Start the Development Server
+### Starting the Development Server
 
 To start both the frontend and backend servers:
 
-```
+```bash
 npm run dev
 ```
 
@@ -87,58 +88,96 @@ This will start:
 - Backend server at http://localhost:3000
 - Frontend development server at http://localhost:5173
 
-## Step 7: Generate a Session Link
+## Installing Docker and Docker Compose on Ubuntu 22.04
 
-1. In Telegram, send `/new` to your bot
-2. The bot will respond with a unique URL
-3. Open this URL in your browser to start the form flow
+1. **Update your system packages**:
+   ```bash
+   sudo apt update
+   sudo apt upgrade -y
+   ```
 
-## Project Structure
+2. **Install prerequisites**:
+   ```bash
+   sudo apt install -y apt-transport-https ca-certificates curl software-properties-common gnupg lsb-release
+   ```
 
-- `/client` - React frontend (Vite)
-- `/server` - Node.js + Express backend
-- `/server/bot` - Telegram bot integration
-- `/server/db` - Database models and migrations
-- `/data` - SQLite database files
+3. **Add Docker's official GPG key**:
+   ```bash
+   sudo mkdir -p /etc/apt/keyrings
+   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+   sudo chmod a+r /etc/apt/keyrings/docker.gpg
+   ```
 
-## Available Scripts
+4. **Set up the Docker repository**:
+   ```bash
+   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu jammy stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+   sudo apt update
+   ```
 
-- `npm run dev` - Start development servers
-- `npm run server` - Start only the backend server
-- `npm run client` - Start only the frontend server
-- `npm run build` - Build the frontend for production
-- `npm start` - Start the production server
-- `npm run init-db` - Initialize the database
-- `npm run test-bot` - Test the Telegram bot connection
+5. **Install Docker Engine and Docker Compose**:
+   ```bash
+   sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+   ```
 
-## Troubleshooting
+6. **Add your user to the docker group** (to run Docker without sudo):
+   ```bash
+   sudo usermod -aG docker $USER
+   ```
+   Note: You'll need to log out and back in for this change to take effect. Alternatively, you can run:
+   ```bash
+   newgrp docker
+   ```
 
-### Bot Not Responding
-- Check that your `TELEGRAM_BOT_TOKEN` is correct
-- Ensure the bot server is running
-- Make sure you've stopped any other instances of the bot (use `taskkill /f /im node.exe` on Windows)
+7. **Verify Docker installation**:
+   ```bash
+   # Check Docker version
+   docker --version
+   
+   # Verify Docker Engine is installed correctly
+   docker run hello-world
+   ```
 
-### Group Chat Not Working
-- Verify that the bot is an admin in the group
-- Ensure you've set the correct `GROUP_CHAT_ID` in the `.env` file
-- Run the `get-chat-id.js` script again if needed
+8. **Verify Docker Compose installation**:
+   ```bash
+   # Check Docker Compose version
+   docker compose version
+   ```
 
-### Password Not Being Sent
-- Check that the password field is properly included in the form submission
-- Verify that the form data is being correctly passed to the Telegram notification
+9. **Enable Docker to start on boot**:
+   ```bash
+   sudo systemctl enable docker
+   sudo systemctl status docker
+   ```
 
-## Next Steps
+## Production Deployment
 
-- Customize the forms to collect the specific data you need
-- Enhance the Telegram bot with additional commands
-- Add authentication for admin access
-- Implement email notifications for form submissions
+### Option 1: Docker Deployment (Recommended)
 
-## Ubuntu 22.04 Server Setup Guide
+1. Make sure Docker and Docker Compose are installed on your server
 
-This section provides instructions for setting up the project on an Ubuntu 22.04 server.
+2. Clone the repository and navigate to the project directory:
+   ```bash
+   git clone https://github.com/your-username/paypal-projekt.git
+   cd paypal-projekt
+   ```
 
-### Option 1: Manual Setup
+3. Create a `.env` file with your production settings:
+   ```
+   TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+   ADMIN_CHAT_ID=your_chat_id
+   GROUP_CHAT_ID=your_group_chat_id
+   SERVER_URL=https://your-domain.com
+   CLIENT_URL=https://your-domain.com
+   ```
+
+4. Build and start the Docker containers:
+   ```bash
+   docker-compose up -d
+   ```
+
+5. Your application is now running at http://your-server-ip:3000
+
+### Option 2: Manual Deployment
 
 #### Prerequisites Installation
 
@@ -151,14 +190,14 @@ This section provides instructions for setting up the project on an Ubuntu 22.04
 2. Install Node.js and npm:
    ```bash
    sudo apt install -y curl
-   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+   curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -
    sudo apt install -y nodejs
    ```
 
 3. Verify the installation:
    ```bash
-   node -v  # Should show v20.x.x
-   npm -v   # Should show v9.x.x or higher
+   node -v  # Should show v16.x.x or higher
+   npm -v   # Should show v7.x.x or higher
    ```
 
 4. Install Git:
@@ -176,7 +215,6 @@ This section provides instructions for setting up the project on an Ubuntu 22.04
 
 2. Create and configure the `.env` file:
    ```bash
-   cp .env.example .env  # If .env.example exists
    nano .env  # Or use any text editor you prefer
    ```
 
@@ -187,11 +225,15 @@ This section provides instructions for setting up the project on an Ubuntu 22.04
    GROUP_CHAT_ID=your_group_chat_id
    PORT=3000
    NODE_ENV=production
+   SERVER_URL=https://your-domain.com
+   CLIENT_URL=https://your-domain.com
    ```
 
 3. Install dependencies and set up the project:
    ```bash
-   npm run install-all
+   npm install
+   cd client && npm install
+   cd ..
    npm run init-db
    ```
 
@@ -200,140 +242,38 @@ This section provides instructions for setting up the project on an Ubuntu 22.04
    npm run build
    ```
 
-5. Test the Telegram bot:
-   ```bash
-   npm run test-bot
-   ```
-
-6. Start the production server:
+5. Start the production server:
    ```bash
    npm start
    ```
 
-#### Setting Up as a System Service
-
-To ensure your application runs continuously and starts automatically on system boot:
-
-1. Create a systemd service file:
+6. For keeping the server running after you log out, use a process manager like PM2:
    ```bash
-   sudo nano /etc/systemd/system/telegram-form-app.service
+   npm install -g pm2
+   pm2 start server/index.js --name "telegram-form-app"
+   pm2 save
+   pm2 startup
    ```
 
-2. Add the following configuration (adjust paths as needed):
-   ```
-   [Unit]
-   Description=Telegram Form Control Application
-   After=network.target
+## Using a Reverse Proxy (Recommended for Production)
 
-   [Service]
-   Type=simple
-   User=your_username
-   WorkingDirectory=/path/to/paypal-projekt
-   ExecStart=/usr/bin/node server/index.js
-   Restart=on-failure
-   Environment=NODE_ENV=production
-
-   [Install]
-   WantedBy=multi-user.target
-   ```
-
-3. Enable and start the service:
-   ```bash
-   sudo systemctl enable telegram-form-app
-   sudo systemctl start telegram-form-app
-   ```
-
-4. Check the service status:
-   ```bash
-   sudo systemctl status telegram-form-app
-   ```
-
-### Option 2: Docker Deployment
-
-#### Prerequisites Installation
-
-1. Update your system packages:
-   ```bash
-   sudo apt update
-   sudo apt upgrade -y
-   ```
-
-2. Install Docker and Docker Compose:
-   ```bash
-   # Install Docker
-   sudo apt install -y apt-transport-https ca-certificates curl software-properties-common
-   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-   echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-   sudo apt update
-   sudo apt install -y docker-ce docker-ce-cli containerd.io
-
-   # Install Docker Compose
-   sudo apt install -y docker-compose-plugin
-   ```
-
-3. Add your user to the docker group to run Docker without sudo:
-   ```bash
-   sudo usermod -aG docker $USER
-   ```
-   Note: You'll need to log out and back in for this change to take effect.
-
-#### Project Setup
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/paypal-projekt.git
-   cd paypal-projekt
-   ```
-
-2. Create and configure the `.env` file:
-   ```bash
-   cp .env.example .env  # If .env.example exists
-   nano .env  # Or use any text editor you prefer
-   ```
-
-   Add the following configuration (replace with your actual values):
-   ```
-   TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-   ADMIN_CHAT_ID=your_chat_id
-   GROUP_CHAT_ID=your_group_chat_id
-   PORT=3000
-   NODE_ENV=production
-   ```
-
-3. Build and start the Docker containers:
-   ```bash
-   docker compose up -d
-   ```
-
-4. Check the container status:
-   ```bash
-   docker compose ps
-   ```
-
-5. View logs (if needed):
-   ```bash
-   docker compose logs -f
-   ```
-
-### Configuring Nginx as a Reverse Proxy (Optional)
-
-If you want to expose your application to the internet with a domain name and HTTPS:
+For a secure production setup, we recommend using Nginx as a reverse proxy:
 
 1. Install Nginx:
    ```bash
    sudo apt install -y nginx
    ```
 
-2. Create a new Nginx configuration file:
+2. Create a new Nginx configuration:
    ```bash
-   sudo nano /etc/nginx/sites-available/telegram-form-app
+   sudo nano /etc/nginx/sites-available/paypal-projekt
    ```
 
-3. Add the following configuration (adjust as needed):
+3. Add the following configuration (replace `your-domain.com` with your actual domain):
    ```
    server {
        listen 80;
-       server_name your-domain.com www.your-domain.com;
+       server_name your-domain.com;
 
        location / {
            proxy_pass http://localhost:3000;
@@ -348,49 +288,78 @@ If you want to expose your application to the internet with a domain name and HT
 
 4. Enable the site and restart Nginx:
    ```bash
-   sudo ln -s /etc/nginx/sites-available/telegram-form-app /etc/nginx/sites-enabled/
-   sudo nginx -t  # Test the configuration
+   sudo ln -s /etc/nginx/sites-available/paypal-projekt /etc/nginx/sites-enabled/
+   sudo nginx -t
    sudo systemctl restart nginx
    ```
 
-5. Set up SSL with Certbot (recommended):
+5. Set up SSL with Let's Encrypt:
    ```bash
    sudo apt install -y certbot python3-certbot-nginx
-   sudo certbot --nginx -d your-domain.com -d www.your-domain.com
+   sudo certbot --nginx -d your-domain.com
    ```
 
-### Troubleshooting on Ubuntu
+## Troubleshooting
 
-#### Permission Issues
-- If you encounter permission issues with the data directory:
-  ```bash
-  sudo chown -R $USER:$USER /path/to/paypal-projekt/data
-  ```
+### Bot Not Responding
+- Check that your `TELEGRAM_BOT_TOKEN` is correct in the `.env` file
+- Ensure the bot server is running
+- Make sure you've stopped any other instances of the bot
+- Check the server logs for any errors
 
-#### Port Already in Use
-- Check if port 3000 is already in use:
-  ```bash
-  sudo lsof -i :3000
-  ```
-- Kill the process if needed:
-  ```bash
-  sudo kill -9 <PID>
-  ```
+### Group Chat Not Working
+- Verify that the bot is an admin in the group
+- Ensure you've set the correct `GROUP_CHAT_ID` in the `.env` file
+- Check the API response from `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates`
 
-#### Docker Issues
-- If Docker containers fail to start, check logs:
-  ```bash
-  docker compose logs
-  ```
-- Restart Docker service if needed:
-  ```bash
-  sudo systemctl restart docker
-  ```
+### Application Not Starting
+- Check that all environment variables are correctly set in your `.env` file
+- Ensure all dependencies are installed: `npm install && cd client && npm install`
+- Verify that the database is initialized: `npm run init-db`
+- Check for port conflicts: make sure port 3000 is not in use by another application
 
-#### Firewall Configuration
-- If you're using UFW (Ubuntu's firewall), allow necessary ports:
-  ```bash
-  sudo ufw allow 80/tcp  # HTTP
-  sudo ufw allow 443/tcp  # HTTPS
-  sudo ufw reload
-  ```
+### Docker Issues
+- Make sure Docker and Docker Compose are properly installed
+- Verify that the `.env` file exists and contains the correct values
+- Check Docker logs: `docker-compose logs`
+- Ensure the data directory has the correct permissions
+
+## Maintenance
+
+### Updating the Application
+1. Pull the latest changes:
+   ```bash
+   git pull
+   ```
+
+2. Install any new dependencies:
+   ```bash
+   npm install
+   cd client && npm install
+   cd ..
+   ```
+
+3. Rebuild the client:
+   ```bash
+   npm run build
+   ```
+
+4. Restart the server:
+   ```bash
+   # If using PM2
+   pm2 restart telegram-form-app
+   
+   # If using Docker
+   docker-compose down
+   docker-compose up -d
+   ```
+
+### Backing Up Data
+The application stores data in the `data` directory. To back up your data:
+
+```bash
+# Create a backup of the data directory
+cp -r data data_backup_$(date +%Y%m%d)
+
+# Or create a compressed archive
+tar -czvf data_backup_$(date +%Y%m%d).tar.gz data
