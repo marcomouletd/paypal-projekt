@@ -1,0 +1,562 @@
+/* PayPal Style CSS - Exact Match */
+:root {
+  --paypal-blue: #0070ba;
+  --paypal-dark-blue: #003087;
+  --paypal-light-gray: #f5f7fa;
+  --paypal-gray: #eaeced;
+  --paypal-border-gray: #cbd2d6;
+  --paypal-dark-gray: #2c2e2f;
+  --paypal-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+body, html {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: auto;
+}
+
+body {
+  font-family: var(--paypal-font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #fff;
+  color: #2c2e2f;
+}
+
+.paypal-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+  justify-content: space-between;
+  background-color: white;
+  font-family: var(--paypal-font);
+  align-items: center;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.paypal-logo-container {
+  margin: 0 auto 50px;
+  display: flex;
+  justify-content: center;
+}
+
+.paypal-logo-img {
+  width: 40px;
+  height: auto;
+}
+
+.paypal-form-container {
+  width: 460px;
+  max-width: 100%;
+  padding: 30px 10% 50px;
+  margin: 80px auto 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid #EAECED;
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+
+.paypal-form {
+  width: 100%;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.paypal-input-group {
+  margin-bottom: 16px;
+  width: 100%;
+  position: relative;
+}
+
+.paypal-input-group::before {
+  content: "";
+  display: block;
+  z-index: -1;
+  position: absolute;
+  top: 0;
+  width: 100%;
+  height: 40px;
+  background-color: #fff;
+  border-radius: 5px;
+}
+
+.textInput .fieldWrapper::before {
+  content: "";
+  display: block;
+  z-index: -1;
+  position: absolute;
+  top: 0;
+  width: 100%;
+  height: 40px;
+  background-color: #fff;
+  border-radius: 5px;
+}
+
+.paypal-input {
+  appearance: none;
+  height: 64px;
+  width: 100%;
+  padding: 0 12px;
+  background-color: #fff;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+  border-radius: 4px;
+  border: 0.0625rem solid #9198A0;
+  color: #001435;
+  font-family: var(--paypal-font);
+  font-style: normal;
+  font-weight: normal;
+  margin: 0;
+  overflow: visible;
+  position: relative;
+  font-size: 1rem;
+  line-height: 64px; 
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.paypal-input:focus {
+  outline: none;
+  border-color: #0070ba;
+  box-shadow: 0 0 0 1px #0070ba;
+}
+
+.paypal-input::placeholder {
+  color: #6c7378;
+  opacity: 1;
+}
+
+.paypal-input:not(:placeholder-shown) {
+  padding-top: 20px;
+  padding-bottom: 8px;
+  line-height: 24px;
+}
+
+.paypal-help-text {
+  display: block;
+  color: #0070E0;
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+  margin-bottom: 20px;
+  text-decoration: none;
+  font-weight: normal;
+  font-style: normal;
+  background-color: rgba(0, 0, 0, 0);
+  line-height: 24px;
+}
+
+.paypal-help-text:hover {
+  outline: none;
+  color: #73A5FF;
+  text-decoration: none;
+}
+
+.paypal-button-primary {
+  width: 100%;
+  height: 48px;
+  background-color: #0544b5;
+  color: #fff;
+  border: 0;
+  border-radius: 100px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.75rem 2rem;
+  margin: 0 0 16px 0;
+  text-align: center;
+  text-shadow: none;
+  text-decoration: none;
+  transition: color 0.2s ease 0s, background-color 0.2s ease 0s, border-color 0.2s ease 0s, box-shadow 0.2s ease 0s;
+  position: relative;
+  line-height: 21px;
+  border-image: none;
+  appearance: button;
+  overflow: visible;
+}
+
+.paypal-button-primary:hover {
+  background-color: #0070E0;
+}
+
+.paypal-button-primary:active {
+  background-color: #003087;
+}
+
+.paypal-divider {
+  display: flex;
+  align-items: center;
+  margin: 16px 0;
+  width: 100%;
+  color: #6c7378;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.paypal-divider::before,
+.paypal-divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid #cbd2d6;
+  margin: 0 12px;
+}
+
+.paypal-divider span {
+  padding: 0 10px;
+  color: #6c7378;
+}
+
+.paypal-button-secondary {
+  width: 100%;
+  height: 48px;
+  border-radius: 100px;
+  font-size: 1rem;
+  background-attachment: scroll;
+  background-clip: border-box;
+  background-image: none;
+  background-origin: padding-box;
+  background-position-x: 0%;
+  background-position-y: 0%;
+  background-repeat: repeat;
+  background-size: auto;
+  background-color: transparent;
+  color: #001435;
+  border: 0.0625rem solid #001435;
+  box-shadow: transparent 0px 0px 0px 0.0625rem inset;
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+  padding: 0.75rem 2rem;
+  margin: 0%;
+  text-align: center;
+  text-shadow: none;
+  text-decoration: none;
+  position: relative;
+  line-height: 21px;
+  border-image: none;
+  appearance: button;
+  overflow: visible;
+}
+
+.paypal-button-secondary:hover {
+  background: transparent;
+  border-color: #0070E0;
+  box-shadow: none;
+  color: #0070E0;
+}
+
+.paypal-button-secondary:active {
+  color: #003087;
+  border-color: #003087;
+}
+
+.paypal-language-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 90px;
+  font-size: 14px;
+  color: #545D68;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.paypal-flag {
+  margin-right: 8px;
+}
+
+.language-divider {
+  margin: 0 8px;
+}
+
+.language-option {
+  cursor: pointer;
+}
+
+.dropdown-icon {
+  font-size: 10px;
+  margin-left: 4px;
+  margin-top: -2px;
+}
+
+.paypal-footer {
+  width: 100%;
+  text-align: center;
+  padding: 14px 0;
+  background-color: #F7F9FA;
+  font-size: 11px;
+  color: #545D68;
+  font-weight: bold;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-top: auto;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  position: absolute;
+}
+
+.paypal-footer a {
+  color: #545D68;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.paypal-footer a:hover {
+  text-decoration: none;
+}
+
+/* Radio button styles */
+.paypal-form-options {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.paypal-option-item {
+  margin-bottom: 16px;
+}
+
+.paypal-radio-container {
+  display: flex;
+  position: relative;
+  padding-left: 35px;
+  cursor: pointer;
+  align-items: flex-start;
+  margin-bottom: 15px;
+}
+
+.paypal-radio-container input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.paypal-radio-checkmark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 22px;
+  width: 22px;
+  background-color: #fff;
+  border: 1px solid #000;
+  border-radius: 50%;
+}
+
+.paypal-radio-container input:checked ~ .paypal-radio-checkmark {
+  background-color: #000;
+}
+
+.paypal-radio-checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+.paypal-radio-container input:checked ~ .paypal-radio-checkmark:after {
+  display: block;
+}
+
+.paypal-radio-container .paypal-radio-checkmark:after {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.paypal-option-text {
+  display: flex;
+  flex-direction: column;
+  padding-left: 10px;
+}
+
+.paypal-option-title, 
+.paypal-option-description {
+  padding-left: 0;
+  margin-left: 0;
+  text-align: left;
+}
+
+.paypal-option-title {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.paypal-option-description {
+  font-size: 14px;
+  color: #666;
+  margin-top: 5px;
+}
+
+.paypal-disclaimer {
+  font-size: 14px;
+  color: #666;
+  margin: 30px 0;
+  line-height: 1.5;
+  text-align: left;
+  padding: 0 5px;
+}
+
+.paypal-option-inline {
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  gap: 8px;
+}
+
+.paypal-option-inline .paypal-option-title {
+  margin: 0;
+  font-weight: bold;
+}
+
+.paypal-option-inline .paypal-option-description {
+  margin: 0;
+  font-weight: normal;
+  font-size: 14px;
+  color: #666;
+}
+
+/* Form title styling */
+.paypal-form-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2c2e2f;
+  margin-bottom: 40px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* Form description styling */
+.paypal-form-description {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 35px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* Form2 specific styles */
+.form2-title {
+  font-size: 20px !important;
+  font-weight: 500 !important;
+  white-space: nowrap !important;
+  margin-bottom: 20px !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .paypal-form-container {
+    width: 100%;
+    margin: 60px auto 30px;
+    padding: 20px 5% 30px;
+    border-radius: 8px;
+  }
+  
+  .paypal-form {
+    padding: 0;
+  }
+}
+
+/* PayPal logo color fix */
+.paypal-logo svg path {
+  fill: white;
+}
+
+/* Error message styling */
+.error-message {
+  color: #c72e2e;
+  font-size: 13px;
+  margin-top: 5px;
+  text-align: left;
+}
+
+/* Error alert styling - matches the screenshot */
+.paypal-error-alert {
+  display: flex;
+  align-items: center;
+  background-color: #fff8fa;
+  border: 1px solid #e20f30;
+  border-radius: 4px;
+  color: #e20f30;
+  font-size: 14px;
+  padding: 12px;
+  margin-bottom: 16px;
+  text-align: left;
+  line-height: 1.5;
+}
+
+.error-icon {
+  margin-right: 8px;
+  font-size: 16px;
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #0070ba;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 2s linear infinite;
+  margin: 0 auto 20px;
+}
+
+#splitEmailSection .fieldWrapper #email,
+#splitPasswordSection .fieldWrapper #password {
+  min-height: 64px;
+  line-height: 24px;
+  border: 0.0625rem solid #9198A0;
+}
+
+#splitEmailSection .fieldWrapper #email:focus,
+#splitPasswordSection .fieldWrapper #password:focus {
+  border-color: #0070ba;
+  box-shadow: 0 0 0 1px #0070ba;
+}
+
+.paypal-input-label {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  font-size: 0.75rem;
+  color: #6c7378;
+  pointer-events: none;
+  transition: all 0.2s ease;
+}
+
+.fieldWrapper {
+  position: relative;
+  width: 100%;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.forgot-email {
+  font-size: 14px;
+  font-weight: bold;
+  color: #0070ba;
+  margin-top: 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.forgot-email:hover {
+  text-decoration: underline;
+}
