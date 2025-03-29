@@ -19,7 +19,7 @@ ENV PORT=3000
 
 # Copy package files and install server dependencies
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 
 # Copy server files
 COPY server/ ./server/
