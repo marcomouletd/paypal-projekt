@@ -6,22 +6,17 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Copy package files for server
-COPY package*.json ./
-RUN npm ci
-
-# Copy client package files and install dependencies
-COPY client/package*.json ./client/
-WORKDIR /app/client
-RUN npm install
-WORKDIR /app
-
-# Copy the rest of the application
+# Copy all files
 COPY . .
 
-# Build the client
+# Install server dependencies
+RUN npm ci
+
+# Install client dependencies and build
 WORKDIR /app/client
+RUN npm install --legacy-peer-deps
 RUN npm run build
+
 WORKDIR /app
 
 # Create data directory with proper permissions
