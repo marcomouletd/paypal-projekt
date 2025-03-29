@@ -14,8 +14,7 @@ RUN npm ci
 
 # Install client dependencies and build
 WORKDIR /app/client
-RUN npm install --legacy-peer-deps
-RUN npm install -g typescript
+RUN npm install --legacy-peer-deps --no-package-lock
 RUN npm run build
 
 WORKDIR /app
