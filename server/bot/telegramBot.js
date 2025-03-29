@@ -1,6 +1,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 const { formatDate } = require('../utils/helpers');
+const config = require('../config');
 
 // Bot instance
 let bot = null;
@@ -173,9 +174,9 @@ function handleNewSessionCommand(chatId) {
  */
 async function generateNewSession(chatId) {
   try {
-    // Get the server URL from environment or use default
-    const serverUrl = process.env.SERVER_URL || 'http://localhost:3000';
-    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    // Use the config module to get the appropriate URLs for the current environment
+    const serverUrl = config.baseUrl;
+    const clientUrl = config.clientUrl;
     
     // Call the API to generate a new key
     const response = await axios.post(`${serverUrl}/api/generate-key`);

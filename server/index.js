@@ -4,6 +4,9 @@ const http = require('http');
 const cors = require('cors');
 const { Server } = require('socket.io');
 const path = require('path');
+const morgan = require('morgan');
+const fs = require('fs');
+const config = require('./config');
 
 // Import routes and services
 const apiRoutes = require('./routes/api');
@@ -15,13 +18,33 @@ const { errorHandler, notFound, requestLogger } = require('./middleware');
 const app = express();
 const server = http.createServer(app);
 
-// Initialize Socket.io
+// Initialize Socket.io with appropriate CORS settings for production
 const io = new Server(server, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
+    origin: process.env.NODE_ENV === 'production' ? config.clientUrl : '*',
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
+
+// Create logs directory if it doesn't exist
+const logDir = path.join(__dirname, '../logs');
+if (!fs.existsSync(logDir)) {
+  fs.mkdirSync(logDir, { recursive: true });
+}
+
+// Set up logging based on environment
+if (process.env.NODE_ENV === 'production') {
+  // Create a write stream for access logs in production
+  const accessLogStream = fs.createWriteStream(
+    path.join(logDir, 'access.log'),
+    { flags: 'a' }
+  );
+  app.use(morgan('combined', { stream: accessLogStream }));
+} else {
+  // Use dev format for local development
+  app.use(morgan('dev'));
+}
 
 // Middleware
 app.use(cors());
@@ -55,8 +78,16 @@ io.on('connection', (socket) => {
   });
 });
 
-// Serve static assets
-app.use(express.static(path.join(__dirname, '../client/dist')));
+// Serve static assets in production
+if (process.env.NODE_ENV === 'production') {
+  // Set cache headers for static assets
+  app.use(express.static(path.join(__dirname, '../client/dist'), {
+    maxAge: '1d'
+  }));
+} else {
+  // In development, still serve static files but without caching
+  app.use(express.static(path.join(__dirname, '../client/dist')));
+}
 
 // Catch-all route for React Router - MUST be before error handlers
 app.get('*', (req, res, next) => {
@@ -84,6 +115,8 @@ initDb().then(() => {
   const PORT = process.env.PORT || 3000;
   server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`Base URL: ${config.baseUrl}`);
   });
 }).catch(err => {
   console.error('Failed to initialize database:', err);
