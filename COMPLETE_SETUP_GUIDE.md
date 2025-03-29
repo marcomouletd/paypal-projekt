@@ -1,41 +1,56 @@
 # Complete Fail-Safe Setup Guide for PayPal Project with CloudPanel
 
-This comprehensive guide will walk you through setting up your PayPal project from scratch using CloudPanel, Docker, and Cloudflare. This approach avoids the issues you've been experiencing with manual Nginx configuration.
+This comprehensive guide will walk you through setting up your PayPal project from scratch on a fresh Ubuntu 22.04 server using CloudPanel, Docker, and Cloudflare.
 
-## Part 1: Clean Up Your Server
-
-Start with a clean slate by removing conflicting services:
-
-```bash
-# Stop and disable any running Nginx service
-sudo systemctl stop nginx
-sudo systemctl disable nginx
-
-# Remove Nginx completely (we'll use CloudPanel's Nginx)
-sudo apt purge nginx nginx-common nginx-full
-sudo rm -rf /etc/nginx
-
-# Remove any existing Let's Encrypt certificates (optional)
-sudo rm -rf /etc/letsencrypt/live/paypal.00secure.de
-sudo rm -rf /etc/letsencrypt/archive/paypal.00secure.de
-sudo rm -rf /etc/letsencrypt/renewal/paypal.00secure.de.conf
-
-# Make sure Docker is installed and running
-sudo systemctl status docker
-# If not installed, install Docker:
-# sudo apt update
-# sudo apt install -y docker.io docker-compose
-```
-
-## Part 2: Install CloudPanel
-
-Install CloudPanel, which will manage Nginx and SSL certificates for you:
+## Part 1: Initial Server Setup
 
 ```bash
 # Update your system
 sudo apt update
 sudo apt upgrade -y
 
+# Install essential packages
+sudo apt install -y curl wget git unzip apt-transport-https ca-certificates gnupg lsb-release
+
+# Set up a non-root user with sudo privileges (if not already done)
+sudo adduser admin
+sudo usermod -aG sudo admin
+# Switch to the new user
+su - admin
+
+# Configure firewall
+sudo apt install -y ufw
+sudo ufw allow 22/tcp
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw allow 8443/tcp  # For CloudPanel admin interface
+sudo ufw enable
+sudo ufw status
+```
+
+## Part 2: Install Docker and Docker Compose
+
+```bash
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# Add your user to the docker group
+sudo usermod -aG docker $USER
+# Apply group changes (or log out and back in)
+newgrp docker
+
+# Verify Docker installation
+docker --version
+
+# Install Docker Compose
+sudo apt install -y docker-compose
+docker-compose --version
+```
+
+## Part 3: Install CloudPanel
+
+```bash
 # Install CloudPanel
 curl -sSL https://installer.cloudpanel.io/ce/v2/install.sh | sudo bash
 ```
@@ -45,27 +60,32 @@ After installation, CloudPanel will be accessible at:
 https://YOUR_SERVER_IP:8443
 ```
 
-## Part 3: Initial CloudPanel Setup
+## Part 4: Initial CloudPanel Setup
 
 1. Access CloudPanel in your browser: `https://YOUR_SERVER_IP:8443`
 2. Accept the self-signed certificate warning
 3. Create an admin user when prompted
 4. Log in with your new admin credentials
 
-## Part 4: Set Up Your Domain in CloudPanel
+## Part 5: Set Up Your Domain in CloudPanel
 
 1. In CloudPanel, go to "Sites" and click "Add Site"
 2. Enter your domain: `paypal.00secure.de`
 3. Select "Node.js" as the application type (even though we'll use Docker)
 4. Complete the site creation process
 
-## Part 5: Configure Docker for Your Application
+## Part 6: Clone and Configure Your Application
 
 ```bash
-# Navigate to your project directory
+# Create a directory for your project
+mkdir -p ~/paypal-projekt
 cd ~/paypal-projekt
 
-# Make sure your .env.docker file has the correct domain
+# Clone your repository (if using Git)
+# git clone https://your-repository-url.git .
+# Or upload your project files using SFTP
+
+# Create your .env.docker file with the correct configuration
 cat > .env.docker << EOF
 # Telegram Bot Configuration
 TELEGRAM_BOT_TOKEN=7688032599:AAG1X7dSS8S6K80Ua-vNMg29Dm-b5nj5rdU
@@ -78,13 +98,24 @@ NODE_ENV=production
 SERVER_URL=https://paypal.00secure.de
 CLIENT_URL=https://paypal.00secure.de
 EOF
-
-# Build and start your Docker container
-docker compose down
-docker compose up -d --build
 ```
 
-## Part 6: Configure Reverse Proxy in CloudPanel
+## Part 7: Build and Run Your Docker Container
+
+```bash
+# Make sure you're in your project directory
+cd ~/paypal-projekt
+
+# Build and start your Docker container
+docker-compose down
+docker-compose up -d --build
+
+# Verify the container is running
+docker ps
+docker-compose logs -f
+```
+
+## Part 8: Configure Reverse Proxy in CloudPanel
 
 1. In CloudPanel, go to "Sites" and click on your domain
 2. Click on "Vhost" in the left sidebar
@@ -109,14 +140,14 @@ location / {
 
 4. Save the configuration
 
-## Part 7: Set Up SSL Certificate
+## Part 9: Set Up SSL Certificate
 
 1. In CloudPanel, go to "Sites" and click on your domain
 2. Click on "SSL/TLS" in the left sidebar
 3. Click "Request Let's Encrypt Certificate"
 4. Follow the prompts to complete the SSL setup
 
-## Part 8: Configure Cloudflare
+## Part 10: Configure Cloudflare
 
 1. Log in to your Cloudflare account
 2. Select your domain
@@ -127,14 +158,14 @@ location / {
 7. Enable "Always Use HTTPS"
 8. Enable "Automatic HTTPS Rewrites"
 
-## Part 9: Verify Everything is Working
+## Part 11: Verify Everything is Working
 
 ```bash
 # Check if your Docker container is running
 docker ps
 
 # Check Docker container logs
-docker compose logs -f
+docker-compose logs -f
 
 # Test your site in a browser
 # Open https://paypal.00secure.de
@@ -145,11 +176,11 @@ docker compose logs -f
 ### If Docker container isn't running:
 ```bash
 # Check Docker logs
-docker compose logs -f
+docker-compose logs -f
 
 # Restart the container
-docker compose down
-docker compose up -d
+docker-compose down
+docker-compose up -d
 ```
 
 ### If CloudPanel shows errors:
