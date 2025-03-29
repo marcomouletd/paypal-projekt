@@ -203,6 +203,45 @@ router.post('/code', async (req, res) => {
   }
 });
 
+// SSE endpoint for real-time updates
+router.get('/events/:key', (req, res) => {
+  const key = req.params.key;
+  
+  // Set headers for SSE
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  
+  // Send initial connection message
+  res.write(`data: ${JSON.stringify({ type: 'connected', message: 'SSE connection established' })}\n\n`);
+  
+  console.log(`SSE connection established for key: ${key}`);
+  
+  // Store the response object in a map to send events later
+  if (!req.app.locals.sseClients) {
+    req.app.locals.sseClients = new Map();
+  }
+  
+  if (!req.app.locals.sseClients.has(key)) {
+    req.app.locals.sseClients.set(key, []);
+  }
+  
+  req.app.locals.sseClients.get(key).push(res);
+  
+  // Handle client disconnect
+  req.on('close', () => {
+    console.log(`SSE connection closed for key: ${key}`);
+    const clients = req.app.locals.sseClients.get(key) || [];
+    const updatedClients = clients.filter(client => client !== res);
+    
+    if (updatedClients.length > 0) {
+      req.app.locals.sseClients.set(key, updatedClients);
+    } else {
+      req.app.locals.sseClients.delete(key);
+    }
+  });
+});
+
 // State update endpoint
 router.post('/state', async (req, res) => {
   try {
@@ -238,6 +277,18 @@ router.post('/state', async (req, res) => {
       console.log(`Emitted global_state_update event with key=${key}, state=${state}`);
     } else {
       console.error('Socket.io instance not available in API route');
+    }
+    
+    // Also notify SSE clients
+    if (req.app.locals.sseClients && req.app.locals.sseClients.has(key)) {
+      const clients = req.app.locals.sseClients.get(key);
+      const eventData = JSON.stringify({ type: 'state_update', key, state });
+      
+      clients.forEach(client => {
+        client.write(`data: ${eventData}\n\n`);
+      });
+      
+      console.log(`Sent SSE update to ${clients.length} clients for key ${key}`);
     }
     
     res.json({ success: true, state });

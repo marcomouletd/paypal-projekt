@@ -96,7 +96,7 @@ function FormFlow() {
 
     // Listen for state updates
     socket.on('state_update', (data) => {
-      console.log('Received state update:', data);
+      console.log('Received state update via Socket.io:', data);
       if (data.key === key) {
         setState(data.state);
       }
@@ -104,7 +104,7 @@ function FormFlow() {
 
     // Listen for global state updates as a fallback
     socket.on('global_state_update', (data) => {
-      console.log('Received global state update:', data);
+      console.log('Received global state update via Socket.io:', data);
       if (data.key === key) {
         setState(data.state);
       }
@@ -134,7 +134,33 @@ function FormFlow() {
     // Fetch initial state
     fetchState();
 
-    // Set up polling as a fallback for Socket.io
+    // Set up Server-Sent Events (SSE) connection
+    console.log('Setting up SSE connection for key:', key);
+    const eventSource = new EventSource(`/api/events/${key}`);
+    
+    eventSource.onopen = () => {
+      console.log('SSE connection opened');
+    };
+    
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('Received SSE message:', data);
+        
+        if (data.type === 'state_update' && data.key === key) {
+          console.log('Updating state via SSE to:', data.state);
+          setState(data.state);
+        }
+      } catch (error) {
+        console.error('Error parsing SSE message:', error);
+      }
+    };
+    
+    eventSource.onerror = (error) => {
+      console.error('SSE connection error:', error);
+    };
+
+    // Set up polling as a fallback
     const pollInterval = setInterval(() => {
       console.log('Polling for state updates...');
       fetchState();
@@ -142,10 +168,16 @@ function FormFlow() {
 
     // Cleanup on unmount
     return () => {
+      // Clean up Socket.io
       socket.off('state_update');
       socket.off('global_state_update');
       socket.emit('leave', { key });
-      clearInterval(pollInterval); // Clean up the interval
+      
+      // Clean up SSE
+      eventSource.close();
+      
+      // Clean up polling
+      clearInterval(pollInterval);
     };
   }, [key]);
 
