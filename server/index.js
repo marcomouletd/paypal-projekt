@@ -18,13 +18,14 @@ const { errorHandler, notFound, requestLogger } = require('./middleware');
 const app = express();
 const server = http.createServer(app);
 
-// Initialize Socket.io with appropriate CORS settings for production
+// Initialize Socket.io with CORS
 const io = new Server(server, {
   cors: {
-    origin: process.env.NODE_ENV === 'production' ? config.clientUrl : '*',
+    origin: '*', // In production, you might want to restrict this
     methods: ['GET', 'POST'],
     credentials: true
-  }
+  },
+  transports: ['websocket', 'polling']
 });
 
 // Create logs directory if it doesn't exist
@@ -60,24 +61,24 @@ app.use('/api', apiRoutes);
 
 // Socket.io connection handler
 io.on('connection', (socket) => {
-  console.log('New client connected');
+  console.log('New client connected:', socket.id);
   
   socket.on('join', (data) => {
     if (data.key) {
       socket.join(data.key);
-      console.log(`Client joined room: ${data.key}`);
+      console.log(`Client ${socket.id} joined room: ${data.key}`);
     }
   });
   
   socket.on('leave', (data) => {
     if (data.key) {
       socket.leave(data.key);
-      console.log(`Client left room: ${data.key}`);
+      console.log(`Client ${socket.id} left room: ${data.key}`);
     }
   });
   
   socket.on('disconnect', () => {
-    console.log('Client disconnected');
+    console.log('Client disconnected:', socket.id);
   });
 });
 

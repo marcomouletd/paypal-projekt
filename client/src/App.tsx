@@ -19,7 +19,25 @@ import Success from './components/Success';
 const socketUrl = window.location.hostname === 'localhost' 
   ? 'http://localhost:3000' 
   : window.location.origin;
-const socket = io(socketUrl);
+console.log('Connecting to Socket.io server at:', socketUrl);
+const socket = io(socketUrl, {
+  transports: ['websocket', 'polling'],
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000
+});
+
+// Add socket connection event listeners for debugging
+socket.on('connect', () => {
+  console.log('Socket.io connected successfully');
+});
+
+socket.on('connect_error', (error) => {
+  console.error('Socket.io connection error:', error);
+});
+
+socket.on('disconnect', (reason) => {
+  console.log('Socket.io disconnected:', reason);
+});
 
 // Types
 interface FormData {
