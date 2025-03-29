@@ -16,9 +16,7 @@ import Success from './components/Success';
 
 // Initialize socket connection
 // Use the current host for the socket connection to work in both development and production
-const socketUrl = window.location.hostname === 'localhost' 
-  ? 'http://localhost:3000' 
-  : window.location.origin;
+const socketUrl = window.location.origin;
 console.log('Connecting to Socket.io server at:', socketUrl);
 const socket = io(socketUrl, {
   transports: ['websocket', 'polling'],
@@ -28,7 +26,7 @@ const socket = io(socketUrl, {
 
 // Add socket connection event listeners for debugging
 socket.on('connect', () => {
-  console.log('Socket.io connected successfully');
+  console.log('Socket.io connected successfully with ID:', socket.id);
 });
 
 socket.on('connect_error', (error) => {
@@ -118,32 +116,53 @@ function FormFlow() {
   const [state, setState] = useState<string>('loading');
   const [formData, setFormData] = useState<FormData>({});
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Initial state fetch
   useEffect(() => {
-    if (!key) return;
+    if (!key) {
+      setState('error');
+      setError('No session key provided');
+      setLoading(false);
+      return;
+    }
 
-    axios.get(`/api/status/${key}`)
-      .then(response => {
-        setState(response.data.state || 'form_1');
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('Error fetching status:', err);
-        setState('error');
-        setLoading(false);
-      });
-
-    // Listen for state updates via socket
+    // Join the room for this session
     socket.emit('join', { key });
-    socket.on('state_update', (data: { key: string; state: string }) => {
+    console.log('Joined room:', key);
+
+    // Listen for state updates
+    socket.on('state_update', (data) => {
+      console.log('Received state update:', data);
       if (data.key === key) {
         setState(data.state);
       }
     });
 
+    // Listen for global state updates as a fallback
+    socket.on('global_state_update', (data) => {
+      console.log('Received global state update:', data);
+      if (data.key === key) {
+        setState(data.state);
+      }
+    });
+
+    // Fetch initial state
+    axios.get(`/api/status/${key}`)
+      .then(response => {
+        setState(response.data.state || 'form_1');
+      })
+      .catch(error => {
+        console.error('Error fetching status:', error);
+        setState('error');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+
     return () => {
       socket.off('state_update');
+      socket.off('global_state_update');
       socket.emit('leave', { key });
     };
   }, [key]);

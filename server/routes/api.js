@@ -203,29 +203,39 @@ router.post('/code', async (req, res) => {
   }
 });
 
-// Update session state (from Telegram bot)
+// State update endpoint
 router.post('/state', async (req, res) => {
   try {
     const { key, state } = req.body;
+    console.log(`State update request received: key=${key}, state=${state}`);
     
     if (!key || !state) {
+      console.log('Missing key or state in request');
       return res.status(400).json({ error: 'Session key and state are required' });
     }
     
     const session = await db.getSession(key);
     if (!session) {
+      console.log(`Session not found: ${key}`);
       return res.status(404).json({ error: 'Session not found or expired' });
     }
     
     // Update session state
     await db.updateSessionState(key, state);
+    console.log(`Database updated: key=${key}, state=${state}`);
     
     // Notify connected clients via Socket.io
-    // Get the io instance from the app
     const io = req.app.get('io');
+    console.log(`Socket.io instance available: ${!!io}`);
+    
     if (io) {
+      // Emit to the specific room
       io.to(key).emit('state_update', { key, state });
       console.log(`Emitted state_update event to room ${key} with state ${state}`);
+      
+      // Also emit to all clients as a fallback
+      io.emit('global_state_update', { key, state });
+      console.log(`Emitted global_state_update event with key=${key}, state=${state}`);
     } else {
       console.error('Socket.io instance not available in API route');
     }
