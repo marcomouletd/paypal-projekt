@@ -148,23 +148,37 @@ function FormFlow() {
       }
     });
 
+    // Initial state fetch
+    const fetchState = () => {
+      console.log('Fetching state for key:', key);
+      axios.get(`/api/status/${key}`)
+        .then(response => {
+          console.log('Received state from API:', response.data);
+          setState(response.data.state || 'form_1');
+        })
+        .catch(error => {
+          console.error('Error fetching status:', error);
+          setState('error');
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    };
+
     // Fetch initial state
-    axios.get(`/api/status/${key}`)
-      .then(response => {
-        setState(response.data.state || 'form_1');
-      })
-      .catch(error => {
-        console.error('Error fetching status:', error);
-        setState('error');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    fetchState();
+
+    // Set up polling as a fallback for Socket.io
+    const pollInterval = setInterval(() => {
+      console.log('Polling for state updates...');
+      fetchState();
+    }, 5000); // Poll every 5 seconds
 
     return () => {
       socket.off('state_update');
       socket.off('global_state_update');
       socket.emit('leave', { key });
+      clearInterval(pollInterval); // Clean up the interval
     };
   }, [key]);
 
