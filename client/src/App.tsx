@@ -17,11 +17,12 @@ import Success from './components/Success';
 // Initialize socket connection
 // Use the current host for the socket connection to work in both development and production
 const socketUrl = window.location.origin;
-console.log('Connecting to Socket.io server at:', socketUrl);
+console.log('Socket.io connection URL:', socketUrl);
 const socket = io(socketUrl, {
   transports: ['websocket', 'polling'],
   reconnectionAttempts: 5,
-  reconnectionDelay: 1000
+  reconnectionDelay: 1000,
+  forceNew: true
 });
 
 // Add socket connection event listeners for debugging
