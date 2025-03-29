@@ -6,20 +6,23 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Copy package files and install dependencies with better layer caching
+# Copy package files for server
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 # Copy client package files and install dependencies
 COPY client/package*.json ./client/
-# Install all dependencies (including dev) since we need them for the build
-RUN cd client && npm ci
+WORKDIR /app/client
+RUN npm install
+WORKDIR /app
 
 # Copy the rest of the application
 COPY . .
 
 # Build the client
-RUN cd client && npm run build
+WORKDIR /app/client
+RUN npm run build
+WORKDIR /app
 
 # Create data directory with proper permissions
 RUN mkdir -p /app/data && chown -R node:node /app/data

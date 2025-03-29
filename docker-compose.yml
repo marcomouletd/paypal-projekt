@@ -5,14 +5,8 @@ services:
     build: .
     ports:
       - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - ADMIN_CHAT_ID=${ADMIN_CHAT_ID}
-      - GROUP_CHAT_ID=${GROUP_CHAT_ID}
-      - SERVER_URL=${SERVER_URL:-http://localhost:3000}
-      - CLIENT_URL=${CLIENT_URL:-http://localhost:3000}
+    env_file:
+      - .env.docker
     volumes:
       - ./data:/app/data
     restart: unless-stopped
