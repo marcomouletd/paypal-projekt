@@ -3,14 +3,15 @@ const axios = require('axios');
 const { formatDate } = require('../utils/helpers');
 const config = require('../config');
 
-// Bot instance
-let bot = null;
-let io = null;
+// Environment variables
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID;
 const GROUP_CHAT_ID = process.env.GROUP_CHAT_ID;
 
-// Store active sessions with their data
-const activeSessions = new Map();
+// Global variables
+let bot = null; // Singleton bot instance
+let io = null; // Socket.io instance
+const activeSessions = new Map(); // Map to store active sessions
 
 /**
  * Initialize the Telegram bot
@@ -48,6 +49,16 @@ function initBot(socketIo) {
     // Register event handlers
     bot.on('message', handleMessage);
     bot.on('callback_query', handleCallbackQuery);
+    
+    // Handle polling errors
+    bot.on('polling_error', (error) => {
+      // Only log the error once every 5 minutes to prevent log flooding
+      const now = Date.now();
+      if (!global.lastTelegramErrorTime || now - global.lastTelegramErrorTime > 300000) {
+        console.error('Telegram polling error:', error.message);
+        global.lastTelegramErrorTime = now;
+      }
+    });
     
     console.log('Telegram bot initialized');
     
