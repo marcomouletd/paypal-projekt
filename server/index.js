@@ -52,6 +52,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(requestLogger);
 
+// Make io available to our API routes
+app.set('io', io);
+
 // API routes
 app.use('/api', apiRoutes);
 

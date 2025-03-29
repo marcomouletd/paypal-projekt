@@ -59,7 +59,10 @@ ssh user@your-server-ip
 cd /var/www/paypal.00secure.de
 
 # Clone your repository
-git clone https://your-git-repo-url.git .
+git clone https://your-git-repo-url.git
+
+# Navigate to the project directory
+cd paypal-projekt
 
 # Install dependencies
 npm run install-all
@@ -74,11 +77,11 @@ npm run init-db
 ### Option 2: Deploy via SFTP
 
 1. Use an SFTP client like FileZilla to connect to your server
-2. Upload all files from your local project to `/var/www/paypal.00secure.de` on the server
+2. Upload all files from your local project to `/var/www/paypal.00secure.de/paypal-projekt` on the server
 3. SSH into your server and run:
 
 ```bash
-cd /var/www/paypal.00secure.de
+cd /var/www/paypal.00secure.de/paypal-projekt
 npm run install-all
 npm run build
 npm run init-db
@@ -89,7 +92,7 @@ npm run init-db
 Create a `.env` file in your project root:
 
 ```bash
-cd /var/www/paypal.00secure.de
+cd /var/www/paypal.00secure.de/paypal-projekt
 nano .env
 ```
 
@@ -119,6 +122,13 @@ location / {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
 }
+
+# Optionally, if you want to directly serve static assets from the dist folder
+# location /assets {
+#     alias /var/www/paypal.00secure.de/paypal-projekt/client/dist/assets;
+#     expires 30d;
+#     add_header Cache-Control "public, max-age=2592000";
+# }
 ```
 
 3. Save the configuration
@@ -127,7 +137,7 @@ location / {
 
 ```bash
 # Navigate to your project directory
-cd /var/www/paypal.00secure.de
+cd /var/www/paypal.00secure.de/paypal-projekt
 
 # Start your application with PM2
 pm2 start server/index.js --name "paypal-app" --env production
@@ -141,40 +151,40 @@ pm2 save
 
 ```bash
 # Create logs directory
-mkdir -p /var/www/paypal.00secure.de/logs
-chmod 755 /var/www/paypal.00secure.de/logs
+mkdir -p /var/www/paypal.00secure.de/paypal-projekt/logs
+chmod 755 /var/www/paypal.00secure.de/paypal-projekt/logs
 ```
 
 ## Step 9: Set Up a Database Backup Strategy
 
 ```bash
 # Create a backup directory
-mkdir -p /var/www/paypal.00secure.de/backups
+mkdir -p /var/www/paypal.00secure.de/paypal-projekt/backups
 
 # Create a backup script
-nano /var/www/paypal.00secure.de/backup.sh
+nano /var/www/paypal.00secure.de/paypal-projekt/backup.sh
 ```
 
 Add the following content to the backup script:
 ```bash
 #!/bin/bash
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-BACKUP_DIR="/var/www/paypal.00secure.de/backups"
+BACKUP_DIR="/var/www/paypal.00secure.de/paypal-projekt/backups"
 mkdir -p $BACKUP_DIR
-cp /var/www/paypal.00secure.de/data/database.sqlite $BACKUP_DIR/database_$TIMESTAMP.sqlite
+cp /var/www/paypal.00secure.de/paypal-projekt/data/database.sqlite $BACKUP_DIR/database_$TIMESTAMP.sqlite
 # Remove backups older than 30 days
 find $BACKUP_DIR -name "database_*.sqlite" -type f -mtime +30 -delete
 ```
 
 Make the script executable and add it to cron:
 ```bash
-chmod +x /var/www/paypal.00secure.de/backup.sh
+chmod +x /var/www/paypal.00secure.de/paypal-projekt/backup.sh
 crontab -e
 ```
 
 Add this line to run the backup daily at 2 AM:
 ```
-0 2 * * * /var/www/paypal.00secure.de/backup.sh
+0 2 * * * /var/www/paypal.00secure.de/paypal-projekt/backup.sh
 ```
 
 ## Step 10: Test Your Deployment
@@ -195,7 +205,7 @@ pm2 logs paypal-app
 
 Verify environment variables:
 ```bash
-cat /var/www/paypal.00secure.de/.env
+cat /var/www/paypal.00secure.de/paypal-projekt/.env
 ```
 
 ### Nginx Proxy Issues
@@ -214,12 +224,12 @@ nginx -t
 
 Check if the database file exists:
 ```bash
-ls -la /var/www/paypal.00secure.de/data/
+ls -la /var/www/paypal.00secure.de/paypal-projekt/data/
 ```
 
 Reinitialize the database if needed:
 ```bash
-cd /var/www/paypal.00secure.de
+cd /var/www/paypal.00secure.de/paypal-projekt
 npm run init-db
 ```
 
@@ -239,7 +249,7 @@ To update your application:
 ssh user@your-server-ip
 
 # Navigate to your project directory
-cd /var/www/paypal.00secure.de
+cd /var/www/paypal.00secure.de/paypal-projekt
 
 # Pull the latest changes (if using Git)
 git pull

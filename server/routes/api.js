@@ -221,7 +221,14 @@ router.post('/state', async (req, res) => {
     await db.updateSessionState(key, state);
     
     // Notify connected clients via Socket.io
-    // This will be handled by the main server
+    // Get the io instance from the app
+    const io = req.app.get('io');
+    if (io) {
+      io.to(key).emit('state_update', { key, state });
+      console.log(`Emitted state_update event to room ${key} with state ${state}`);
+    } else {
+      console.error('Socket.io instance not available in API route');
+    }
     
     res.json({ success: true, state });
   } catch (error) {

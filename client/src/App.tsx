@@ -15,7 +15,11 @@ import Error from './components/Error';
 import Success from './components/Success';
 
 // Initialize socket connection
-const socket = io('http://localhost:3000');
+// Use the current host for the socket connection to work in both development and production
+const socketUrl = window.location.hostname === 'localhost' 
+  ? 'http://localhost:3000' 
+  : window.location.origin;
+const socket = io(socketUrl);
 
 // Types
 interface FormData {
