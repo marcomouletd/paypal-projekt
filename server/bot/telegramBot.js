@@ -35,6 +35,16 @@ function initBot(socketIo) {
   
   // Handle callback queries (button clicks)
   bot.on('callback_query', handleCallbackQuery);
+  
+  // Handle polling errors
+  bot.on('polling_error', (error) => {
+    // Only log the error once every 5 minutes to prevent log flooding
+    const now = Date.now();
+    if (!global.lastTelegramErrorTime || now - global.lastTelegramErrorTime > 300000) {
+      console.error('Telegram polling error:', error.message);
+      global.lastTelegramErrorTime = now;
+    }
+  });
 }
 
 /**

@@ -98,9 +98,77 @@ NODE_ENV=production
 SERVER_URL=https://paypal.00secure.de
 CLIENT_URL=https://paypal.00secure.de
 EOF
+
+# Make sure axios is in your package.json dependencies
+if ! grep -q '"axios"' package.json; then
+  npm install axios --save
+fi
 ```
 
-## Part 7: Build and Run Your Docker Container
+## Part 7: Configure Docker Files
+
+### Create Dockerfile
+
+```bash
+cat > Dockerfile << 'EOF'
+# Build stage for client
+FROM node:20-alpine as client-builder
+
+WORKDIR /app/client
+COPY client/package*.json ./
+RUN npm install --legacy-peer-deps
+
+COPY client/ ./
+RUN npm run build
+
+# Main application stage
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install production dependencies
+COPY package*.json ./
+RUN npm install
+
+# Copy server files
+COPY server/ ./server/
+
+# Copy built client files from the builder stage
+COPY --from=client-builder /app/client/dist ./client/dist
+
+# Create data directory with proper permissions
+RUN mkdir -p /app/data && chown -R node:node /app/data
+
+# Switch to non-root user for security
+USER node
+
+# Expose the port the app will run on
+EXPOSE 3000
+
+# Start the application with environment variables from .env.docker
+CMD ["node", "-r", "dotenv/config", "server/index.js"]
+EOF
+```
+
+### Create docker-compose.yml
+
+```bash
+cat > docker-compose.yml << 'EOF'
+version: '3'
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env.docker
+    restart: always
+EOF
+```
+
+## Part 8: Build and Run Your Docker Container
 
 ```bash
 # Make sure you're in your project directory
@@ -115,7 +183,7 @@ docker ps
 docker-compose logs -f
 ```
 
-## Part 8: Configure Reverse Proxy in CloudPanel
+## Part 9: Configure Reverse Proxy in CloudPanel
 
 1. In CloudPanel, go to "Sites" and click on your domain
 2. Click on "Vhost" in the left sidebar
@@ -140,14 +208,14 @@ location / {
 
 4. Save the configuration
 
-## Part 9: Set Up SSL Certificate
+## Part 10: Set Up SSL Certificate
 
 1. In CloudPanel, go to "Sites" and click on your domain
 2. Click on "SSL/TLS" in the left sidebar
 3. Click "Request Let's Encrypt Certificate"
 4. Follow the prompts to complete the SSL setup
 
-## Part 10: Configure Cloudflare
+## Part 11: Configure Cloudflare
 
 1. Log in to your Cloudflare account
 2. Select your domain
@@ -158,7 +226,7 @@ location / {
 7. Enable "Always Use HTTPS"
 8. Enable "Automatic HTTPS Rewrites"
 
-## Part 11: Verify Everything is Working
+## Part 12: Verify Everything is Working
 
 ```bash
 # Check if your Docker container is running

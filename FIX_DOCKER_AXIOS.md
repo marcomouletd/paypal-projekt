@@ -25,7 +25,7 @@ Add axios to your dependencies in package.json:
 
 ### 2. Update your Dockerfile
 
-Ensure your Dockerfile correctly installs all dependencies. Here's an improved version:
+Modify your Dockerfile to use `npm install` instead of `npm ci` to handle new dependencies without requiring an updated package-lock.json:
 
 ```dockerfile
 # Build stage for client
@@ -43,9 +43,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install production dependencies first
+# Install production dependencies
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 
 # Copy server files
 COPY server/ ./server/
@@ -110,7 +110,7 @@ If you still encounter issues:
 
 To prevent similar issues in the future:
 
-1. **Test locally before deploying**: Run your application with the same Docker setup locally
+1. **Update package-lock.json locally**: Run `npm install` locally before committing changes to package.json
 2. **Use dependency management tools**: Consider using tools like npm-check or depcheck to identify missing dependencies
 3. **Implement health checks**: Add a health check endpoint to your application and configure Docker to use it
 4. **Set up proper logging**: Implement more detailed logging to quickly identify issues

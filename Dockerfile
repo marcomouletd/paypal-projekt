@@ -28,7 +28,7 @@ COPY server/ ./server/
 COPY --from=client-builder /app/client/dist ./client/dist
 
 # Create data directory with proper permissions
-RUN mkdir -p /app/data && chown -R node:node /app/data
+RUN mkdir -p /app/data && chown -R node:node /app/data && chmod 777 /app/data
 
 # Switch to non-root user for security
 USER node
