@@ -203,27 +203,6 @@ router.post('/code', async (req, res) => {
   }
 });
 
-// Get session by key
-router.get('/session/:key', async (req, res) => {
-  try {
-    const key = req.params.key;
-    
-    if (!key) {
-      return res.status(400).json({ error: 'Session key is required' });
-    }
-    
-    const session = await db.getSession(key);
-    if (!session) {
-      return res.status(404).json({ error: 'Session not found' });
-    }
-    
-    res.json({ success: true, session });
-  } catch (error) {
-    console.error('Error getting session:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
 // SSE endpoint for real-time updates
 router.get('/events/:key', (req, res) => {
   const key = req.params.key;
@@ -377,27 +356,6 @@ router.post('/force-update', async (req, res) => {
   } catch (error) {
     console.error('Error in force update:', error);
     res.status(500).json({ error: 'Server error in force update' });
-  }
-});
-
-// Get all active sessions
-router.get('/sessions/active', async (req, res) => {
-  try {
-    const sessions = await db.getAllSessions();
-    
-    // Filter to only include active sessions (not ended or expired)
-    const activeSessions = sessions.filter(session => 
-      session.state !== 'ended' && 
-      session.state !== 'expired' &&
-      // Only include sessions created in the last 24 hours
-      new Date(session.createdAt).getTime() > Date.now() - (24 * 60 * 60 * 1000)
-    );
-    
-    console.log(`Found ${activeSessions.length} active sessions`);
-    res.json({ success: true, sessions: activeSessions });
-  } catch (error) {
-    console.error('Error getting active sessions:', error);
-    res.status(500).json({ error: 'Server error' });
   }
 });
 

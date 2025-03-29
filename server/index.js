@@ -112,13 +112,8 @@ app.use(errorHandler);
 initDb().then(() => {
   console.log('Database initialized');
   
-  // Initialize Telegram bot only after database is ready
-  // Pass the Socket.io instance to the bot
-  const bot = initBot(io);
-  
-  if (!bot) {
-    console.warn('Telegram bot initialization failed');
-  }
+  // Initialize Telegram bot
+  initBot(io);
   
   // Start the server
   const PORT = process.env.PORT || 3000;

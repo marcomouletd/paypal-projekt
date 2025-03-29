@@ -107,28 +107,6 @@ function getSession(key) {
 }
 
 /**
- * Get session state by key
- * @param {string} key - Session key
- */
-function getSessionState(key) {
-  return new Promise((resolve, reject) => {
-    db.get('SELECT state FROM sessions WHERE key = ?', [key], (err, row) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      
-      if (!row) {
-        resolve(null);
-        return;
-      }
-      
-      resolve(row.state);
-    });
-  });
-}
-
-/**
  * Update session state
  * @param {string} key - Session key
  * @param {string} state - New state
@@ -216,54 +194,13 @@ function getFormData(sessionKey, formType = null) {
   });
 }
 
-/**
- * Get all sessions
- * @returns {Promise<Array>} - Array of all sessions
- */
-function getAllSessions() {
-  return new Promise((resolve, reject) => {
-    db.all('SELECT s.*, f.data as formData, f.form_type FROM sessions s LEFT JOIN form_data f ON s.key = f.session_key', [], (err, rows) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      
-      // Process the rows to format the data correctly
-      const sessions = rows.map(row => {
-        let formData = {};
-        if (row.formData) {
-          try {
-            formData = JSON.parse(row.formData);
-          } catch (e) {
-            console.error('Error parsing form data:', e);
-          }
-        }
-        
-        return {
-          key: row.key,
-          state: row.state,
-          formData: formData,
-          createdAt: row.created_at,
-          updatedAt: row.updated_at,
-          expiresAt: row.expires_at,
-          formType: row.form_type
-        };
-      });
-      
-      resolve(sessions);
-    });
-  });
-}
-
 // Export database functions
 module.exports = {
   initDb,
   createSession,
   getSession,
-  getSessionState,
   updateSessionState,
   saveFormData,
   getFormData,
-  getAllSessions,
   db
 };
