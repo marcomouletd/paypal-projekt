@@ -29,11 +29,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(requestLogger);
 
-// Serve static files from the React app in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../client/dist')));
-}
-
 // API routes
 app.use('/api', apiRoutes);
 
@@ -60,16 +55,23 @@ io.on('connection', (socket) => {
   });
 });
 
-// Error handling and 404 middleware
+// Serve static assets
+app.use(express.static(path.join(__dirname, '../client/dist')));
+
+// Catch-all route for React Router - MUST be before error handlers
+app.get('*', (req, res, next) => {
+  // Skip API routes
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
+  
+  // Send the React app's index.html for all other routes
+  res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+});
+
+// Error handling and 404 middleware - only for API routes now
 app.use(notFound);
 app.use(errorHandler);
-
-// Catch-all route to return the React app in production
-if (process.env.NODE_ENV === 'production') {
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
-  });
-}
 
 // Initialize database
 initDb().then(() => {
