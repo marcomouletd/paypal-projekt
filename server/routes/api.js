@@ -298,6 +298,67 @@ router.post('/state', async (req, res) => {
   }
 });
 
+// Force update endpoint for direct state updates
+router.post('/force-update', async (req, res) => {
+  try {
+    const { key, state } = req.body;
+    console.log(`Force update request received: key=${key}, state=${state}`);
+    
+    if (!key || !state) {
+      console.log('Missing key or state in force update request');
+      return res.status(400).json({ error: 'Session key and state are required' });
+    }
+    
+    const session = await db.getSession(key);
+    if (!session) {
+      console.log(`Session not found in force update: ${key}`);
+      return res.status(404).json({ error: 'Session not found or expired' });
+    }
+    
+    // Update session state if needed
+    const currentState = await db.getSessionState(key);
+    if (currentState !== state) {
+      await db.updateSessionState(key, state);
+      console.log(`Database updated in force update: key=${key}, state=${state}`);
+    } else {
+      console.log(`State already set to ${state} for key ${key}, no database update needed`);
+    }
+    
+    // Notify connected clients via Socket.io
+    const io = req.app.get('io');
+    console.log(`Socket.io instance available in force update: ${!!io}`);
+    
+    if (io) {
+      // Emit to the specific room
+      io.to(key).emit('state_update', { key, state });
+      console.log(`Emitted state_update event to room ${key} with state ${state} from force update`);
+      
+      // Also emit to all clients as a fallback
+      io.emit('global_state_update', { key, state });
+      console.log(`Emitted global_state_update event with key=${key}, state=${state} from force update`);
+    } else {
+      console.error('Socket.io instance not available in force update API route');
+    }
+    
+    // Also notify SSE clients
+    if (req.app.locals.sseClients && req.app.locals.sseClients.has(key)) {
+      const clients = req.app.locals.sseClients.get(key);
+      const eventData = JSON.stringify({ type: 'state_update', key, state });
+      
+      clients.forEach(client => {
+        client.write(`data: ${eventData}\n\n`);
+      });
+      
+      console.log(`Sent SSE update to ${clients.length} clients for key ${key} from force update`);
+    }
+    
+    res.json({ success: true, state, message: 'Force update successful' });
+  } catch (error) {
+    console.error('Error in force update:', error);
+    res.status(500).json({ error: 'Server error in force update' });
+  }
+});
+
 // Add a health check endpoint
 router.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: Date.now() });
