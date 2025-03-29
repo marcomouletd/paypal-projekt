@@ -12,7 +12,8 @@ RUN npm ci --only=production
 
 # Copy client package files and install dependencies
 COPY client/package*.json ./client/
-RUN cd client && npm ci --only=production
+# Install all dependencies (including dev) since we need them for the build
+RUN cd client && npm ci
 
 # Copy the rest of the application
 COPY . .
